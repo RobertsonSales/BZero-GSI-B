@@ -727,6 +727,7 @@ const COLUNA_PRISOES = 'PRISOES';
 const COLUNA_ARMAS = 'ARMAS';
 const COLUNA_MUNICOES = 'MUNICOES';
 const COLUNA_DROGAS = 'DROGAS(KG)'; // Mantendo o formato original se for o caso
+const COLUNA_RO = 'REG OCOR'; // Usando o nome completo para clareza, o mapeamento padronizado será REGOCOR
 
 function fecharModal(id) {
     document.getElementById(id).style.display = 'none';
@@ -927,6 +928,8 @@ function mostrarDashboard(dados) {
   dashboard.innerHTML = '';
   
   const totalRegistros = dados.length;
+  // Cálculo do total de R.O.'s únicos
+  const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size;
   const totalPrisoes = dados.reduce((a, r) => a + ((r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0), 0);
   const totalArmas = dados.reduce((a, r) => a + ((r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0), 0);
   const totalMunicoes = dados.reduce((a, r) => a + ((r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0), 0);
@@ -934,7 +937,8 @@ function mostrarDashboard(dados) {
   const locaisUnicos = new Set(dados.map(r => r[mapField('LOCAL')]).filter(Boolean)).size;
   
   const cards = [
-    { id: 'registros', titulo: 'Registros', subtitulo: 'Total de ROs com Itens', valor: totalRegistros, icone: 'fa-clipboard-list', cor: '#3b82f6', corEscura: '#1e3a8a' },
+    { id: 'ros', titulo: 'R.O.s Únicos', subtitulo: 'Total de Registros de Ocorrência', valor: totalROsUnicos, icone: 'fa-clipboard-list', cor: '#3b82f6', corEscura: '#1e3a8a' },
+    { id: 'registros', titulo: 'Entradas', subtitulo: 'Total de Linhas (Itens)', valor: totalRegistros, icone: 'fa-list-ol', cor: '#5a67d8', corEscura: '#434190' },
     { id: 'prisoes', titulo: 'Prisões', subtitulo: 'Total de Prisões', valor: totalPrisoes, icone: 'fa-handcuffs', cor: '#dc2626', corEscura: '#991b1b' },
     { id: 'armas', titulo: 'Armas', subtitulo: 'Armas Apreendidas', valor: totalArmas, icone: 'fa-gun', cor: '#f59e0b', corEscura: '#d97706' },
     { id: 'municoes', titulo: 'Munições', subtitulo: 'Munições Apreendidas', valor: totalMunicoes, icone: 'fa-bullseye', cor: '#8b5cf6', corEscura: '#7c3aed' },
@@ -1069,28 +1073,40 @@ document.getElementById('btnPdf').onclick = () => {
   const dados = getDadosFiltrados();
   getPdfHeader(doc, "RELATORIO COMPLETO OPERACAO BARRICADA ZERO", true);
 
+    // Cálculo do total de R.O.'s únicos para o PDF Completo
+  const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size;
+
+  // Adicionando a métrica de Drogas (Volume)
+  const totalDrogas = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS (KG)')] || 0), 0);
+
   const metrics = [
-    {t: "Registros (Com Itens)", v: dados.length, c: {r:59, g:130, b:246}},
-    {t: "Prisoes", v: dados.reduce((a,r)=>a+((r[mapField('PRISÕES')] || '').trim() !== ''?1:0),0), c: {r:220, g:38, b:38}},
+    {t: "R.O.s Únicos", v: totalROsUnicos, c: {r:59, g:130, b:246}},
+    {t: "Entradas (Linhas)", v: dados.length, c: {r:90, g:103, b:216}},
+    {t: "Prisões", v: dados.reduce((a,r)=>a+((r[mapField('PRISÕES')] || '').trim() !== ''?1:0),0), c: {r:220, g:38, b:38}},
     {t: "Armas", v: dados.reduce((a,r)=>a+((r[mapField('ARMAS')] || '').trim() !== ''?1:0),0), c: {r:245, g:158, b:11}},
+    {t: "Drogas (Kg)", v: totalDrogas.toFixed(2), c: {r:5, g:150, b:105}},
     {t: "Locais (Com Itens)", v: new Set(dados.map(r=>r[mapField('LOCAL')]).filter(Boolean)).size, c: {r:6, g:182, b:212}}
   ];
 
   metrics.forEach((m, i) => {
-    const x = 20 + (i * 68);
+    const cardWidth = 45;
+    const cardGap = 2;
+    const startX = 10; // Margem esquerda
+    const x = startX + (i * (cardWidth + cardGap));
+    
     doc.setFillColor(m.c.r, m.c.g, m.c.b);
-    doc.roundedRect(x, 50, 60, 25, 3, 3, 'F');
+    doc.roundedRect(x, 50, cardWidth, 25, 3, 3, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.text(m.t.toUpperCase(), x + 5, 58);
-    doc.setFontSize(16);
-    doc.text(String(m.v), x + 5, 68);
+    doc.setFontSize(8);
+    doc.text(m.t.toUpperCase(), x + 2, 58);
+    doc.setFontSize(12);
+    doc.text(String(m.v), x + 2, 68);
   });
 
   doc.autoTable({
     startY: 85,
-    head: [['RO', 'DATA', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES']],
-    body: dados.map(r => [r[mapField('REG OCOR')], r[mapField('DT EVENTO')], r[mapField('UNID (DP)')], r[mapField('LOCAL')], r[mapField('PRISÕES')], r[mapField('ARMAS')], r[mapField('MUNIÇÕES')]]),
+    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES']],
+    body: dados.map(r => [r[mapField('REG OCOR')], r[mapField('DT EVENTO')], r[mapField('DEPTO')], r[mapField('UNID (DP)')], r[mapField('LOCAL')], r[mapField('PRISÕES')], r[mapField('ARMAS')], r[mapField('MUNIÇÕES')]]),
     theme: 'striped',
     headStyles: {fillColor: [30, 64, 175]},
     styles: {fontSize: 8}
@@ -1112,18 +1128,33 @@ document.getElementById('btnPdfPerf').onclick = function() {
   const margin = 10;
   let y = 45;
 
-  // 1. Recálculo dos dados de performance (porDepto)
+  // 1. Recálculo dos dados de performance (porDepto) - CORRIGIDO
   const dados = dadosFiltradosAtual;
   const porDepto = {};
+  const operacoesPorDepto = {};
+  
   dados.forEach(r => {
     const d = r[mapField('DEPTO')] || 'N/I';
+    const regocor = r[mapField('REG OCOR')] || '';
+    
+    if(!operacoesPorDepto[d]) {
+      operacoesPorDepto[d] = new Set();
+    }
+    if(regocor) {
+      operacoesPorDepto[d].add(regocor);
+    }
+    
     if(!porDepto[d]) porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drog:0, regs:[]};
-    porDepto[d].ops++;
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
-    porDepto[d].drog += parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0 ? 1 : 0; // Contar ocorrências de drogas
+    porDepto[d].drog += parseFloat(r[mapField('DROGAS (KG)')] || 0);
     porDepto[d].regs.push(r);
+  });
+  
+  // Define a contagem de operações baseada em REG OCOR únicos
+  Object.keys(porDepto).forEach(d => {
+    porDepto[d].ops = operacoesPorDepto[d] ? operacoesPorDepto[d].size : 0;
   });
   const deptosData = Object.entries(porDepto).map(([d, i]) => ({
     depto: d,
@@ -1149,12 +1180,14 @@ document.getElementById('btnPdfPerf').onclick = function() {
   const totalArmas = deptosData.reduce((a, d) => a + d.arm, 0);
   const totalOps = deptosData.reduce((a, d) => a + d.ops, 0);
   const totalRegs = dados.length;
+  const totalROsUnicos = deptosData.reduce((a, d) => a + d.ops, 0); // R.O.s Únicos é o mesmo que Operações (ops)
 
   const metrics = [
-    {t: "Total Operacoes", v: totalOps, c: [59, 130, 246]},
+    {t: "Total R.O.s Únicos", v: totalOps, c: [59, 130, 246]},
     {t: "Total Prisoes", v: totalPrisoes, c: [220, 38, 38]},
     {t: "Total Armas", v: totalArmas, c: [245, 158, 11]},
-    {t: "Total Registros", v: totalRegs, c: [5, 150, 105]}
+    {t: "Total Entradas", v: totalRegs, c: [5, 150, 105]},
+    {t: "Total R.O.s Únicos", v: totalROsUnicos, c: [6, 182, 212]}
   ];
 
   metrics.forEach((m, i) => {
@@ -1198,16 +1231,16 @@ document.getElementById('btnPdfPerf').onclick = function() {
   // 5. Tabela de Resumo por Departamento
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text("Resumo por Departamento", margin, y);
+  doc.text("Resumo por Departamento (R.O.s Únicos)", margin, y);
   y += 5;
 
   const summaryData = deptosData.map(d => [
-    d.depto, d.ops, d.pris, d.arm, d.mun, d.drog, d.eficiencia
+    d.depto, d.ops, d.pris, d.arm, d.mun, d.drog.toFixed(2), d.eficiencia
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['Departamento', 'Operações', 'Prisões', 'Armas', 'Munições', 'Drogas (Kg)', 'Eficiência']],
+    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Kg)', 'Eficiência']],
     body: summaryData,
     theme: 'grid',
     headStyles: {fillColor: [30, 64, 175]},
@@ -1224,7 +1257,7 @@ document.getElementById('btnPdfPerf').onclick = function() {
   
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text("Registros Detalhados", margin, y);
+  doc.text("Registros Detalhados (Entradas)", margin, y);
   y += 5;
 
   const tableRecords = dados.map(r => [
@@ -1260,19 +1293,44 @@ document.getElementById('btnPdfPerf').onclick = function() {
 };
 
 
-// PERFORMANCE (MANTIDA)
+// PERFORMANCE (CORRIGIDO - Contagem precisa por departamento)
 document.getElementById('btnAnalise').onclick = () => {
   const mapField = (original) => original.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
   const dados = getDadosFiltrados();
   dadosFiltradosAtual = dados;
   const porDepto = {};
+  
+  // CORREÇÃO: Agrupar por REG OCOR único para contar operações distintas
+  const operacoesPorDepto = {};
+  
   dados.forEach(r => {
     const d = r[mapField('DEPTO')] || 'N/I';
-    if(!porDepto[d]) porDepto[d] = {ops:0, pris:0, arm:0, regs:[]};
-    porDepto[d].ops++;
+    const regocor = r[mapField('REG OCOR')] || '';
+    
+    if(!operacoesPorDepto[d]) {
+      operacoesPorDepto[d] = new Set();
+    }
+    
+    // Adiciona o REG OCOR ao conjunto (evita duplicatas)
+    if(regocor) {
+      operacoesPorDepto[d].add(regocor);
+    }
+    
+    // Acumula dados de produtos
+    if(!porDepto[d]) {
+      porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drog:0, regs:[]};
+    }
+    
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
+    porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
+    porDepto[d].drog += parseFloat(r[mapField('DROGAS (KG)')] || 0);
     porDepto[d].regs.push(r);
+  });
+  
+  // Define a contagem de operações baseada em REG OCOR únicos
+  Object.keys(porDepto).forEach(d => {
+    porDepto[d].ops = operacoesPorDepto[d] ? operacoesPorDepto[d].size : 0;
   });
 
   const labels = Object.keys(porDepto);
@@ -1286,14 +1344,29 @@ document.getElementById('btnAnalise').onclick = () => {
 
   charts.p = config(document.getElementById('chartPrisoes'), 'Prisões', labels.map(l=>porDepto[l].pris), '#dc2626');
   charts.a = config(document.getElementById('chartArmas'), 'Armas', labels.map(l=>porDepto[l].arm), '#f59e0b');
-  charts.o = config(document.getElementById('chartOperacoes'), 'Operações', labels.map(l=>porDepto[l].ops), '#3b82f6');
-  charts.z = new Chart(document.getElementById('chartPizza'), { type: 'pie', data: { labels, datasets: [{ data: labels.map(l=>porDepto[l].ops) }] } });
+  charts.o = config(document.getElementById('chartOperacoes'), 'R.O.s Únicos', labels.map(l=>porDepto[l].ops), '#3b82f6');
+  charts.z = new Chart(document.getElementById('chartPizza'), { 
+    type: 'pie', 
+    data: { 
+      labels, 
+      datasets: [{ 
+        label: 'R.O.s Únicos', 
+        data: labels.map(l=>porDepto[l].ops), 
+        backgroundColor: ['#3b82f6', '#dc2626', '#f59e0b', '#8b5cf6', '#059669', '#06b6d4', '#eab308', '#f43f5e', '#a855f7', '#14b8a6', '#f97316', '#6366f1'] 
+      }] 
+    },
+    options: {
+      plugins: {
+        title: { display: true, text: 'Distribuição de R.O.s Únicos' }
+      }
+    }
+  });
 
   const resumoDiv = document.getElementById('deptoResumo');
   resumoDiv.innerHTML = Object.entries(porDepto).map(([d, i]) => `
     <div class="depto-card"><h4>${d}</h4><div class="stats">
-      <div><strong>${i.ops}</strong> Operaçõess</div><div><strong>${i.pris}</strong> Prisões</div>
-      <div><strong>${i.arm}</strong> Armas</div><div><strong>${((i.pris+i.arm)/i.ops).toFixed(2)}</strong> Eficiência.</div>
+      <div><strong>${i.ops}</strong> R.O.s Únicos</div><div><strong>${i.pris}</strong> Prisões</div>
+      <div><strong>${i.arm}</strong> Armas</div><div><strong>${i.drog.toFixed(2)}</strong> Drogas (Kg)</div><div><strong>${((i.pris+i.arm)/i.ops).toFixed(2)}</strong> Eficiência.</div>
     </div></div>`).join('');
 
   document.getElementById('modalPerf').style.display = 'flex';
