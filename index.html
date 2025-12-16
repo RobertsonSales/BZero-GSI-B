@@ -925,7 +925,7 @@ function getDadosFiltrados() {
     (r[mapField('PRISÕES')] || '').trim() !== '' ||
     (r[mapField('ARMAS')] || '').trim() !== '' ||
     (r[mapField('MUNIÇÕES')] || '').trim() !== '' ||
-    (r[mapField('DROGAS')] || 0) > 0
+    (r[mapField('DROGAS (KG)')] || 0) > 0
   );
   
   const filtros = [
@@ -964,9 +964,9 @@ function mostrarDashboard(dados) {
   const totalArmas = dados.reduce((a, r) => a + ((r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0), 0) || 0;
   const totalMunicoes = dados.reduce((a, r) => a + ((r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0), 0) || 0;
   
-  // CORREÇÃO: Contabiliza quantidade de itens de drogas (coluna X da aba REGISTROS)
+  // CORREÇÃO: Contabiliza quantidade de itens de drogas (linhas com drogas)
   const totalDrogasItens = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
       return a + 1;
     }
@@ -974,7 +974,7 @@ function mostrarDashboard(dados) {
   }, 0) || 0;
   
   // Total de kg de drogas (mantido para referência)
-  const totalDrogasKg = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS')] || 0), 0) || 0;
+  const totalDrogasKg = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS (KG)')] || 0), 0) || 0;
   const locaisUnicos = new Set(dados.map(r => r[mapField('LOCAL')]).filter(Boolean)).size || 0;
   
   const cards = [
@@ -983,7 +983,7 @@ function mostrarDashboard(dados) {
     { id: 'prisoes', titulo: 'Prisões', subtitulo: 'Total de Prisões', valor: totalPrisoes, icone: 'fa-handcuffs', cor: '#dc2626', corEscura: '#991b1b' },
     { id: 'armas', titulo: 'Armas', subtitulo: 'Armas Apreendidas', valor: totalArmas, icone: 'fa-gun', cor: '#f59e0b', corEscura: '#d97706' },
     { id: 'municoes', titulo: 'Munições', subtitulo: 'Munições Apreendidas', valor: totalMunicoes, icone: 'fa-bullseye', cor: '#8b5cf6', corEscura: '#7c3aed' },
-    // CORREÇÃO: Card de Drogas agora mostra quantidade de itens
+    // CORREÇÃO: Card de Drogas agora mostra quantidade de itens de drogas
     { id: 'drogas', titulo: 'Drogas', subtitulo: 'Itens com Droga Apreendida', valor: totalDrogasItens, icone: 'fa-capsules', cor: '#059669', corEscura: '#047857' },
     { id: 'locais', titulo: 'Locais', subtitulo: 'Locais Atuados (Com Itens)', valor: locaisUnicos, icone: 'fa-map-marker-alt', cor: '#06b6d4', corEscura: '#0891b2' }
   ];
@@ -1022,7 +1022,7 @@ function mostrarDetalhes(tipo, titulo) {
         locaisAgrupados[local].prisoes += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
         locaisAgrupados[local].armas += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
         locaisAgrupados[local].municoes += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
-        locaisAgrupados[local].drogas += parseFloat(r[mapField('DROGAS')] || 0) > 0 ? 1 : 0;
+        locaisAgrupados[local].drogas += parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0 ? 1 : 0;
       }
     });
     modalDetalhesDados = Object.entries(locaisAgrupados).map(([local, info]) => ({ local, ...info }));
@@ -1064,8 +1064,8 @@ function mostrarDetalhes(tipo, titulo) {
         if ((r[mapField('MUNIÇÕES')] || '').trim() !== '') {
           rosAgrupados[ro].municoes.push(r[mapField('MUNIÇÕES')]);
         }
-        if (parseFloat(r[mapField('DROGAS')] || 0) > 0) {
-          rosAgrupados[ro].drogas.push(parseFloat(r[mapField('DROGAS')]));
+        if (parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0) {
+          rosAgrupados[ro].drogas.push(parseFloat(r[mapField('DROGAS (KG)')]));
         }
       }
     });
@@ -1085,33 +1085,46 @@ function mostrarDetalhes(tipo, titulo) {
           </div>
         </div>
       </div>`).join('')}</div>`;
+  } else if (tipo === 'drogas') {
+    // CORREÇÃO: Filtra apenas registros que têm drogas e exibe a lista
+    modalDetalhesDados = dadosFiltradosAtual.filter(r => 
+      parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0
+    );
+
+    modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.slice(0, 100).map(r => `
+      <div class="detalhe-item">
+        <div class="detalhe-info">
+          <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">
+            ${r[mapField('DROGAS (KG)')]} kg
+          </span>
+          <span class="detalhe-local">${r[mapField('LOCAL')]} - ${r[mapField('UNID (DP)')]}</span>
+          <span class="detalhe-data">${r[mapField('DT EVENTO')]} | RO: ${r[mapField('REG OCOR')]}</span>
+          <div class="detalhe-itens">
+            ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
+            ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
+            ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
+            <span class="item-badge item-droga">Droga: ${r[mapField('DROGAS (KG)')]} kg</span>
+          </div>
+        </div>
+      </div>`).join('')}</div>`;
   } else {
     // Filtragem rigorosa: remove registros onde o dado da categoria está vazio
     const campoMapping = { 
       'prisoes': mapField('PRISÕES'), 
       'armas': mapField('ARMAS'), 
       'municoes': mapField('MUNIÇÕES'), 
-      'drogas': mapField('DROGAS'), 
       'registros': mapField('REG OCOR') 
     };
     
     modalDetalhesDados = (tipo === 'registros') 
         ? dadosFiltradosAtual 
-        : dadosFiltradosAtual.filter(r => {
-            if (tipo === 'drogas') {
-              return parseFloat(r[campoMapping[tipo]] || 0) > 0;
-            } else {
-              return (r[campoMapping[tipo]] || '').trim() !== '';
-            }
-          });
+        : dadosFiltradosAtual.filter(r => (r[campoMapping[tipo]] || '').trim() !== '');
 
     modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.slice(0, 100).map(r => `
       <div class="detalhe-item">
         <div class="detalhe-info">
           <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">
-            ${tipo === 'registros' ? 'RO: ' + r[mapField('REG OCOR')] : 
-              tipo === 'drogas' ? r[campoMapping[tipo]] + ' kg' : 
-              r[campoMapping[tipo]]}
+            ${tipo === 'registros' ? 'RO: ' + r[mapField('REG OCOR')] : r[campoMapping[tipo]]}
           </span>
           <span class="detalhe-local">${r[mapField('LOCAL')]} - ${r[mapField('UNID (DP)')]}</span>
           <span class="detalhe-data">${r[mapField('DT EVENTO')]}</span>
@@ -1119,7 +1132,7 @@ function mostrarDetalhes(tipo, titulo) {
             ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
             ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
             ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
-            ${parseFloat(r[mapField('DROGAS')] || 0) > 0 ? `<span class="item-badge item-droga">Droga: ${r[mapField('DROGAS')]} kg</span>` : ''}
+            ${parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0 ? `<span class="item-badge item-droga">Droga: ${r[mapField('DROGAS (KG)')]} kg</span>` : ''}
           </div>
         </div>
       </div>`).join('')}</div>`;
@@ -1182,7 +1195,7 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
     headers = ['Local', 'Total Entradas', 'Prisões', 'Armas', 'Munições', 'Drogas'];
     tableData = modalDetalhesDados.map(i => [i.local, i.count, i.prisoes, i.armas, i.municoes, i.drogas]);
   } else if (modalDetalhesTipo === 'ros') {
-    headers = ['R.O.', 'Data', 'Unidade', 'Local', 'Prisões', 'Armas', 'Munições', 'Drogas'];
+    headers = ['R.O.', 'Data', 'Unidade', 'Local', 'Prisões', 'Armas', 'Munições', 'Drogas (kg)'];
     tableData = modalDetalhesDados.map(i => [
       i.ro, 
       i.data, 
@@ -1193,17 +1206,27 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
       i.municoes.length,
       i.drogas.reduce((a,b)=>a+b,0).toFixed(2)
     ]);
+  } else if (modalDetalhesTipo === 'drogas') {
+    headers = ['RO', 'Data', 'Unidade', 'Local', 'Drogas (kg)', 'Prisões', 'Armas', 'Munições'];
+    tableData = modalDetalhesDados.map(r => [
+      r[mapField('REG OCOR')], 
+      r[mapField('DT EVENTO')], 
+      r[mapField('UNID (DP)')], 
+      r[mapField('LOCAL')], 
+      r[mapField('DROGAS (KG)')] || '0',
+      r[mapField('PRISÕES')] || '0',
+      r[mapField('ARMAS')] || '0',
+      r[mapField('MUNIÇÕES')] || '0'
+    ]);
   } else {
-    const campoMapping = { 'prisoes': mapField('PRISÕES'), 'armas': mapField('ARMAS'), 'municoes': mapField('MUNIÇÕES'), 'drogas': mapField('DROGAS') };
+    const campoMapping = { 'prisoes': mapField('PRISÕES'), 'armas': mapField('ARMAS'), 'municoes': mapField('MUNIÇÕES') };
     headers = ['RO', 'Data', 'Unidade', 'Local', 'Conteúdo'];
     tableData = modalDetalhesDados.map(r => [
       r[mapField('REG OCOR')], 
       r[mapField('DT EVENTO')], 
       r[mapField('UNID (DP)')], 
       r[mapField('LOCAL')], 
-      (modalDetalhesTipo === 'registros' ? 'OK' : 
-        modalDetalhesTipo === 'drogas' ? r[campoMapping[modalDetalhesTipo]] + ' kg' : 
-        r[campoMapping[modalDetalhesTipo]])
+      (modalDetalhesTipo === 'registros' ? 'OK' : r[campoMapping[modalDetalhesTipo]])
     ]);
   }
 
@@ -1239,7 +1262,7 @@ document.getElementById('btnPdf').onclick = () => {
 
   // CORREÇÃO: Contabiliza quantidade de itens de drogas
   const totalDrogasItens = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
       return a + 1;
     }
@@ -1252,7 +1275,7 @@ document.getElementById('btnPdf').onclick = () => {
     {t: "Entradas", v: dados.length, c: {r:90, g:103, b:216}},
     {t: "Prisões", v: dados.reduce((a,r)=>a+((r[mapField('PRISÕES')] || '').trim() !== ''?1:0),0), c: {r:220, g:38, b:38}},
     {t: "Armas", v: dados.reduce((a,r)=>a+((r[mapField('ARMAS')] || '').trim() !== ''?1:0),0), c: {r:245, g:158, b:11}},
-    {t: "Drogas", v: totalDrogasItens, c: {r:5, g:150, b:105}},
+    {t: "Drogas (Itens)", v: totalDrogasItens, c: {r:5, g:150, b:105}},
     {t: "Locais", v: new Set(dados.map(r=>r[mapField('LOCAL')]).filter(Boolean)).size, c: {r:6, g:182, b:212}}
   ];
 
@@ -1282,7 +1305,7 @@ document.getElementById('btnPdf').onclick = () => {
   // CORREÇÃO PRINCIPAL: Ajuste das larguras das colunas para melhor distribuição
   doc.autoTable({
     startY: 85,
-    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES', 'DROGAS']],
+    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES', 'DROGAS (KG)']],
     body: dados.map(r => [
       r[mapField('REG OCOR')] || '', 
       r[mapField('DT EVENTO')] || '', 
@@ -1292,7 +1315,7 @@ document.getElementById('btnPdf').onclick = () => {
       r[mapField('PRISÕES')] || '0', 
       r[mapField('ARMAS')] || '0', 
       r[mapField('MUNIÇÕES')] || '0',
-      r[mapField('DROGAS')] || '0'
+      r[mapField('DROGAS (KG)')] || '0'
     ]),
     theme: 'striped',
     headStyles: {fillColor: [30, 64, 175], fontSize: 7, cellPadding: 2},
@@ -1307,7 +1330,7 @@ document.getElementById('btnPdf').onclick = () => {
       5: {cellWidth: 45},  // PRISÕES (maior para nomes)
       6: {cellWidth: 35},  // ARMAS
       7: {cellWidth: 25},  // MUNIÇÕES
-      8: {cellWidth: 37}   // DROGAS
+      8: {cellWidth: 37}   // DROGAS (KG)
     },
     margin: { left: 5, right: 5 },
     tableWidth: 287,
@@ -1356,15 +1379,15 @@ document.getElementById('btnPdfPerf').onclick = function() {
       operacoesPorDepto[d].add(regocor);
     }
     
-    if(!porDepto[d]) porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drog:0, regs:[]};
+    if(!porDepto[d]) porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drogItens:0, regs:[]};
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
     
     // CORREÇÃO: Contabiliza itens de drogas
-    const drogasValue = r[mapField('DROGAS')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
-      porDepto[d].drog += 1;
+      porDepto[d].drogItens += 1;
     }
     
     porDepto[d].regs.push(r);
@@ -1380,8 +1403,8 @@ document.getElementById('btnPdfPerf').onclick = function() {
     pris: i.pris,
     arm: i.arm,
     mun: i.mun,
-    drog: i.drog,
-    eficiencia: (i.ops > 0) ? ((i.pris + i.arm + i.mun + i.drog) / i.ops).toFixed(2) : '0.00',
+    drogItens: i.drogItens,
+    eficiencia: (i.ops > 0) ? ((i.pris + i.arm + i.mun + i.drogItens) / i.ops).toFixed(2) : '0.00',
     regs: i.regs
   }));
   
@@ -1398,13 +1421,13 @@ document.getElementById('btnPdfPerf').onclick = function() {
   const totalArmas = deptosData.reduce((a, d) => a + d.arm, 0) || 0;
   const totalOps = deptosData.reduce((a, d) => a + d.ops, 0) || 0;
   const totalRegs = dados.length || 0;
-  const totalDrogas = deptosData.reduce((a, d) => a + d.drog, 0) || 0;
+  const totalDrogasItens = deptosData.reduce((a, d) => a + d.drogItens, 0) || 0;
 
   const metrics = [
     {t: "Total R.O.s Únicos", v: totalOps, c: [59, 130, 246]},
     {t: "Total Prisões", v: totalPrisoes, c: [220, 38, 38]},
     {t: "Total Armas", v: totalArmas, c: [245, 158, 11]},
-    {t: "Total Drogas", v: totalDrogas, c: [5, 150, 105]},
+    {t: "Total Drogas (Itens)", v: totalDrogasItens, c: [5, 150, 105]},
     {t: "Total Entradas", v: totalRegs, c: [6, 182, 212]}
   ];
 
@@ -1433,12 +1456,12 @@ document.getElementById('btnPdfPerf').onclick = function() {
   y += 5;
 
   const summaryData = deptosData.map(d => [
-    d.depto, d.ops, d.pris, d.arm, d.mun, d.drog, d.eficiencia
+    d.depto, d.ops, d.pris, d.arm, d.mun, d.drogItens, d.eficiencia
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas', 'Eficiência']],
+    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Itens)', 'Eficiência']],
     body: summaryData,
     theme: 'grid',
     headStyles: {fillColor: [30, 64, 175]},
@@ -1469,12 +1492,12 @@ document.getElementById('btnPdfPerf').onclick = function() {
     r[mapField('FACÇÃO')], 
     r[mapField('PRISÕES')] || '0', 
     r[mapField('ARMAS')] || '0',
-    r[mapField('DROGAS')] || '0'
+    r[mapField('DROGAS (KG)')] || '0'
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['RO', 'Data', 'Depto', 'Unidade', 'Local', 'Facção', 'Prisões', 'Armas', 'Drogas']],
+    head: [['RO', 'Data', 'Depto', 'Unidade', 'Local', 'Facção', 'Prisões', 'Armas', 'Drogas (Kg)']],
     body: tableRecords,
     theme: 'striped',
     headStyles: {fillColor: [5, 150, 105]},
@@ -1521,17 +1544,17 @@ document.getElementById('btnAnalise').onclick = () => {
     
     // Acumula dados de produtos
     if(!porDepto[d]) {
-      porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drog:0, regs:[]};
+      porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drogItens:0, regs:[]};
     }
     
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
     
-    // CORREÇÃO: Contabiliza itens de drogas (não peso)
-    const drogasValue = r[mapField('DROGAS')];
+    // CORREÇÃO: Contabiliza itens de drogas
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
-      porDepto[d].drog += 1;
+      porDepto[d].drogItens += 1;
     }
     
     porDepto[d].regs.push(r);
@@ -1575,8 +1598,8 @@ document.getElementById('btnAnalise').onclick = () => {
   resumoDiv.innerHTML = Object.entries(porDepto).map(([d, i]) => `
     <div class="depto-card"><h4>${d}</h4><div class="stats">
       <div><strong>${i.ops || 0}</strong> R.O.s Únicos</div><div><strong>${i.pris || 0}</strong> Prisões</div>
-      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drog || 0}</strong> Drogas</div>
-      <div><strong>${((i.pris+i.arm+i.mun+i.drog)/i.ops || 0).toFixed(2)}</strong> Eficiência</div>
+      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drogItens || 0}</strong> Drogas (Itens)</div>
+      <div><strong>${((i.pris+i.arm+i.mun+i.drogItens)/i.ops || 0).toFixed(2)}</strong> Eficiência</div>
     </div></div>`).join('');
 
   document.getElementById('modalPerf').style.display = 'flex';
