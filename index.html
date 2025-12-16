@@ -1252,7 +1252,7 @@ document.getElementById('btnPdf').onclick = () => {
     {t: "Entradas", v: dados.length, c: {r:90, g:103, b:216}},
     {t: "Prisões", v: dados.reduce((a,r)=>a+((r[mapField('PRISÕES')] || '').trim() !== ''?1:0),0), c: {r:220, g:38, b:38}},
     {t: "Armas", v: dados.reduce((a,r)=>a+((r[mapField('ARMAS')] || '').trim() !== ''?1:0),0), c: {r:245, g:158, b:11}},
-    {t: "Drogas (Itens)", v: totalDrogasItens, c: {r:5, g:150, b:105}},
+    {t: "Drogas", v: totalDrogasItens, c: {r:5, g:150, b:105}},
     {t: "Locais", v: new Set(dados.map(r=>r[mapField('LOCAL')]).filter(Boolean)).size, c: {r:6, g:182, b:212}}
   ];
 
@@ -1404,7 +1404,7 @@ document.getElementById('btnPdfPerf').onclick = function() {
     {t: "Total R.O.s Únicos", v: totalOps, c: [59, 130, 246]},
     {t: "Total Prisões", v: totalPrisoes, c: [220, 38, 38]},
     {t: "Total Armas", v: totalArmas, c: [245, 158, 11]},
-    {t: "Total Drogas (Itens)", v: totalDrogas, c: [5, 150, 105]},
+    {t: "Total Drogas", v: totalDrogas, c: [5, 150, 105]},
     {t: "Total Entradas", v: totalRegs, c: [6, 182, 212]}
   ];
 
@@ -1438,7 +1438,7 @@ document.getElementById('btnPdfPerf').onclick = function() {
 
   doc.autoTable({
     startY: y,
-    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Itens)', 'Eficiência']],
+    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas', 'Eficiência']],
     body: summaryData,
     theme: 'grid',
     headStyles: {fillColor: [30, 64, 175]},
@@ -1575,7 +1575,7 @@ document.getElementById('btnAnalise').onclick = () => {
   resumoDiv.innerHTML = Object.entries(porDepto).map(([d, i]) => `
     <div class="depto-card"><h4>${d}</h4><div class="stats">
       <div><strong>${i.ops || 0}</strong> R.O.s Únicos</div><div><strong>${i.pris || 0}</strong> Prisões</div>
-      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drog || 0}</strong> Drogas (Itens)</div>
+      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drog || 0}</strong> Drogas</div>
       <div><strong>${((i.pris+i.arm+i.mun+i.drog)/i.ops || 0).toFixed(2)}</strong> Eficiência</div>
     </div></div>`).join('');
 
