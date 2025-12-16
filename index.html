@@ -564,6 +564,7 @@
       display: flex;
       flex-direction: column;
       gap: 5px;
+      width: 100%;
     }
     .detalhe-valor {
       font-size: 1.8rem;
@@ -577,6 +578,34 @@
     .detalhe-data {
       color: #94a3b8;
       font-size: 0.9rem;
+    }
+    .detalhe-itens {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .item-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .item-prisao {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+    .item-arma {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+    .item-municao {
+      background-color: #f3e8ff;
+      color: #6b21a8;
+    }
+    .item-droga {
+      background-color: #d1fae5;
+      color: #065f46;
     }
 
     /* Estilos para o rodapé */
@@ -641,7 +670,7 @@
   </div>
 
   <div class="footer">
-    <p>Oeração Barricada Zero - Sistema de Inteligência Operacional | Desenvolvido para análise estratégica de Ações</p>
+    <p>Operação Barricada Zero - Sistema de Inteligência Operacional | Desenvolvido para análise estratégica de Ações</p>
     <p>© GSI - 2025 Todos os direitos reservados</p>
   </div>
 </div>
@@ -728,6 +757,7 @@ const COLUNA_ARMAS = 'ARMAS';
 const COLUNA_MUNICOES = 'MUNICOES';
 const COLUNA_DROGAS = 'DROGAS(KG)'; // Mantendo o formato original se for o caso
 const COLUNA_RO = 'REG OCOR'; // Usando o nome completo para clareza, o mapeamento padronizado será REGOCOR
+const COLUNA_DROGAS_ITENS = 'DROGASITENS'; // Nova coluna para quantidade de itens de drogas
 
 function fecharModal(id) {
     document.getElementById(id).style.display = 'none';
@@ -895,7 +925,7 @@ function getDadosFiltrados() {
     (r[mapField('PRISÕES')] || '').trim() !== '' ||
     (r[mapField('ARMAS')] || '').trim() !== '' ||
     (r[mapField('MUNIÇÕES')] || '').trim() !== '' ||
-    (r[mapField('DROGAS (KG)')] || 0) > 0
+    (r[mapField('DROGAS')] || 0) > 0
   );
   
   const filtros = [
@@ -927,14 +957,25 @@ function mostrarDashboard(dados) {
   const dashboard = document.getElementById('dashboard');
   dashboard.innerHTML = '';
   
-  const totalRegistros = dados.length;
+  const totalRegistros = dados.length || 0;
   // Cálculo do total de R.O.'s únicos
-  const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size;
-  const totalPrisoes = dados.reduce((a, r) => a + ((r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0), 0);
-  const totalArmas = dados.reduce((a, r) => a + ((r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0), 0);
-  const totalMunicoes = dados.reduce((a, r) => a + ((r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0), 0);
-  const totalDrogas = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS (KG)')] || 0), 0);
-  const locaisUnicos = new Set(dados.map(r => r[mapField('LOCAL')]).filter(Boolean)).size;
+  const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size || 0;
+  const totalPrisoes = dados.reduce((a, r) => a + ((r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0), 0) || 0;
+  const totalArmas = dados.reduce((a, r) => a + ((r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0), 0) || 0;
+  const totalMunicoes = dados.reduce((a, r) => a + ((r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0), 0) || 0;
+  
+  // CORREÇÃO: Contabiliza quantidade de itens de drogas (coluna X da aba REGISTROS)
+  const totalDrogasItens = dados.reduce((a, r) => {
+    const drogasValue = r[mapField('DROGAS')];
+    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
+      return a + 1;
+    }
+    return a;
+  }, 0) || 0;
+  
+  // Total de kg de drogas (mantido para referência)
+  const totalDrogasKg = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS')] || 0), 0) || 0;
+  const locaisUnicos = new Set(dados.map(r => r[mapField('LOCAL')]).filter(Boolean)).size || 0;
   
   const cards = [
     { id: 'ros', titulo: 'R.O.s Únicos', subtitulo: 'Total de Registros de Ocorrência', valor: totalROsUnicos, icone: 'fa-clipboard-list', cor: '#3b82f6', corEscura: '#1e3a8a' },
@@ -942,7 +983,8 @@ function mostrarDashboard(dados) {
     { id: 'prisoes', titulo: 'Prisões', subtitulo: 'Total de Prisões', valor: totalPrisoes, icone: 'fa-handcuffs', cor: '#dc2626', corEscura: '#991b1b' },
     { id: 'armas', titulo: 'Armas', subtitulo: 'Armas Apreendidas', valor: totalArmas, icone: 'fa-gun', cor: '#f59e0b', corEscura: '#d97706' },
     { id: 'municoes', titulo: 'Munições', subtitulo: 'Munições Apreendidas', valor: totalMunicoes, icone: 'fa-bullseye', cor: '#8b5cf6', corEscura: '#7c3aed' },
-    { id: 'drogas', titulo: 'Drogas', subtitulo: 'Entradas com Droga', valor: totalDrogas.toFixed(2), icone: 'fa-capsules', cor: '#059669', corEscura: '#047857' },
+    // CORREÇÃO: Card de Drogas agora mostra quantidade de itens
+    { id: 'drogas', titulo: 'Drogas', subtitulo: 'Itens com Droga Apreendida', valor: totalDrogasItens, icone: 'fa-capsules', cor: '#059669', corEscura: '#047857' },
     { id: 'locais', titulo: 'Locais', subtitulo: 'Locais Atuados (Com Itens)', valor: locaisUnicos, icone: 'fa-map-marker-alt', cor: '#06b6d4', corEscura: '#0891b2' }
   ];
 
@@ -975,34 +1017,123 @@ function mostrarDetalhes(tipo, titulo) {
     dadosFiltradosAtual.forEach(r => {
       const local = r[mapField('LOCAL')];
       if (local) {
-        if (!locaisAgrupados[local]) locaisAgrupados[local] = { count: 0, prisoes: 0, armas: 0 };
+        if (!locaisAgrupados[local]) locaisAgrupados[local] = { count: 0, prisoes: 0, armas: 0, municoes: 0, drogas: 0 };
         locaisAgrupados[local].count++;
         locaisAgrupados[local].prisoes += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
         locaisAgrupados[local].armas += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
+        locaisAgrupados[local].municoes += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
+        locaisAgrupados[local].drogas += parseFloat(r[mapField('DROGAS')] || 0) > 0 ? 1 : 0;
       }
     });
     modalDetalhesDados = Object.entries(locaisAgrupados).map(([local, info]) => ({ local, ...info }));
     modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.sort((a,b)=>b.count-a.count).map(i => `
       <div class="detalhe-item"><div class="detalhe-info"><span class="detalhe-valor">${i.local}</span>
       <div style="display:flex; gap:15px; font-size:0.9rem;">
-        <span style="color:#dc2626">Prisões: ${i.prisoes}</span> <span style="color:#f59e0b">Armas: ${i.armas}</span> <span style="color:#3b82f6">Entradas: ${i.count}</span>
+        <span style="color:#dc2626">Prisões: ${i.prisoes}</span> 
+        <span style="color:#f59e0b">Armas: ${i.armas}</span> 
+        <span style="color:#8b5cf6">Munições: ${i.municoes}</span>
+        <span style="color:#059669">Drogas: ${i.drogas}</span>
+        <span style="color:#3b82f6">Entradas: ${i.count}</span>
       </div></div></div>`).join('')}</div>`;
+  } else if (tipo === 'ros') {
+    // Agrupa por R.O. e mostra itens vinculados
+    const rosAgrupados = {};
+    dadosFiltradosAtual.forEach(r => {
+      const ro = r[mapField(COLUNA_REGOCOR)];
+      if (ro) {
+        if (!rosAgrupados[ro]) {
+          rosAgrupados[ro] = {
+            data: r[mapField('DT EVENTO')],
+            depto: r[mapField('DEPTO')],
+            unidade: r[mapField('UNID (DP)')],
+            local: r[mapField('LOCAL')],
+            prisoes: [],
+            armas: [],
+            municoes: [],
+            drogas: []
+          };
+        }
+        
+        // Adiciona itens se existirem
+        if ((r[mapField('PRISÕES')] || '').trim() !== '') {
+          rosAgrupados[ro].prisoes.push(r[mapField('PRISÕES')]);
+        }
+        if ((r[mapField('ARMAS')] || '').trim() !== '') {
+          rosAgrupados[ro].armas.push(r[mapField('ARMAS')]);
+        }
+        if ((r[mapField('MUNIÇÕES')] || '').trim() !== '') {
+          rosAgrupados[ro].municoes.push(r[mapField('MUNIÇÕES')]);
+        }
+        if (parseFloat(r[mapField('DROGAS')] || 0) > 0) {
+          rosAgrupados[ro].drogas.push(parseFloat(r[mapField('DROGAS')]));
+        }
+      }
+    });
+
+    modalDetalhesDados = Object.entries(rosAgrupados).map(([ro, info]) => ({ ro, ...info }));
+    modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.map(i => `
+      <div class="detalhe-item">
+        <div class="detalhe-info">
+          <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">R.O.: ${i.ro}</span>
+          <span class="detalhe-local">${i.local} - ${i.unidade} (${i.depto})</span>
+          <span class="detalhe-data">${i.data}</span>
+          <div class="detalhe-itens">
+            ${i.prisoes.length > 0 ? `<span class="item-badge item-prisao">Prisões: ${i.prisoes.length}</span>` : ''}
+            ${i.armas.length > 0 ? `<span class="item-badge item-arma">Armas: ${i.armas.length}</span>` : ''}
+            ${i.municoes.length > 0 ? `<span class="item-badge item-municao">Munições: ${i.municoes.length}</span>` : ''}
+            ${i.drogas.length > 0 ? `<span class="item-badge item-droga">Drogas: ${i.drogas.length} itens (${i.drogas.reduce((a,b)=>a+b,0).toFixed(2)} kg)</span>` : ''}
+          </div>
+        </div>
+      </div>`).join('')}</div>`;
   } else {
     // Filtragem rigorosa: remove registros onde o dado da categoria está vazio
-    const campoMapping = { 'prisoes': mapField('PRISÕES'), 'armas': mapField('ARMAS'), 'municoes': mapField('MUNIÇÕES'), 'drogas': mapField('DROGAS (KG)'), 'registros': mapField('REG OCOR') };
+    const campoMapping = { 
+      'prisoes': mapField('PRISÕES'), 
+      'armas': mapField('ARMAS'), 
+      'municoes': mapField('MUNIÇÕES'), 
+      'drogas': mapField('DROGAS'), 
+      'registros': mapField('REG OCOR') 
+    };
+    
     modalDetalhesDados = (tipo === 'registros') 
         ? dadosFiltradosAtual 
-        : dadosFiltradosAtual.filter(r => (r[campoMapping[tipo]] || '').trim() !== '');
+        : dadosFiltradosAtual.filter(r => {
+            if (tipo === 'drogas') {
+              return parseFloat(r[campoMapping[tipo]] || 0) > 0;
+            } else {
+              return (r[campoMapping[tipo]] || '').trim() !== '';
+            }
+          });
 
     modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.slice(0, 100).map(r => `
-      <div class="detalhe-item"><div class="detalhe-info">
-        <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">
-          ${tipo === 'registros' ? 'RO: ' + r[mapField('REG OCOR')] : r[campoMapping[tipo]]}
-        </span>
-        <span class="detalhe-local">${r[mapField('LOCAL')]} - ${r[mapField('UNID (DP)')]}</span>
-        <span class="detalhe-data">${r[mapField('DT EVENTO')]}</span>
-      </div></div>`).join('')}</div>`;
+      <div class="detalhe-item">
+        <div class="detalhe-info">
+          <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">
+            ${tipo === 'registros' ? 'RO: ' + r[mapField('REG OCOR')] : 
+              tipo === 'drogas' ? r[campoMapping[tipo]] + ' kg' : 
+              r[campoMapping[tipo]]}
+          </span>
+          <span class="detalhe-local">${r[mapField('LOCAL')]} - ${r[mapField('UNID (DP)')]}</span>
+          <span class="detalhe-data">${r[mapField('DT EVENTO')]}</span>
+          <div class="detalhe-itens">
+            ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
+            ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
+            ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
+            ${parseFloat(r[mapField('DROGAS')] || 0) > 0 ? `<span class="item-badge item-droga">Droga: ${r[mapField('DROGAS')]} kg</span>` : ''}
+          </div>
+        </div>
+      </div>`).join('')}</div>`;
   }
+  
+  // Se não houver dados, mostra mensagem
+  if (modalDetalhesDados.length === 0) {
+    modalBody.innerHTML = `<div style="text-align: center; padding: 50px; color: #64748b;">
+      <i class="fas fa-info-circle" style="font-size: 48px; margin-bottom: 20px;"></i>
+      <h3>Nenhum dado encontrado</h3>
+      <p>Não há registros para exibir nesta categoria com os filtros atuais.</p>
+    </div>`;
+  }
+  
   document.getElementById('modalDetalhes').style.display = 'flex';
 }
 
@@ -1029,7 +1160,8 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
     'armas': { titulo: 'ARMAS', cor: [245, 158, 11] },
     'municoes': { titulo: 'MUNIÇÕES', cor: [139, 92, 246] },
     'drogas': { titulo: 'DROGAS', cor: [5, 150, 105] },
-    'locais': { titulo: 'LOCAIS', cor: [6, 182, 212] }
+    'locais': { titulo: 'LOCAIS', cor: [6, 182, 212] },
+    'ros': { titulo: 'R.O.s ÚNICOS', cor: [59, 130, 246] }
   }[modalDetalhesTipo] || { titulo: 'DETALHES', cor: [59, 130, 246] };
 
   getPdfHeader(doc, `DETALHES: ${cardInfo.titulo}`);
@@ -1043,17 +1175,46 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
   doc.text(cardInfo.titulo, 50, 66);
   doc.text(String(modalDetalhesDados.length), 180, 66, {align:"right"});
 
-  const campoMapping = { 'prisoes': mapField('PRISÕES'), 'armas': mapField('ARMAS'), 'municoes': mapField('MUNIÇÕES'), 'drogas': mapField('DROGAS (KG)') };
-  const tableData = modalDetalhesTipo === 'locais' 
-    ? modalDetalhesDados.map(i => [i.local, i.count, i.prisoes, i.armas])
-    : modalDetalhesDados.map(r => [r[mapField('REG OCOR')], r[mapField('DT EVENTO')], r[mapField('UNID (DP)')], r[mapField('LOCAL')], (modalDetalhesTipo === 'registros' ? 'OK' : r[campoMapping[modalDetalhesTipo]])]);
+  let tableData = [];
+  let headers = [];
+  
+  if (modalDetalhesTipo === 'locais') {
+    headers = ['Local', 'Total Entradas', 'Prisões', 'Armas', 'Munições', 'Drogas'];
+    tableData = modalDetalhesDados.map(i => [i.local, i.count, i.prisoes, i.armas, i.municoes, i.drogas]);
+  } else if (modalDetalhesTipo === 'ros') {
+    headers = ['R.O.', 'Data', 'Unidade', 'Local', 'Prisões', 'Armas', 'Munições', 'Drogas'];
+    tableData = modalDetalhesDados.map(i => [
+      i.ro, 
+      i.data, 
+      i.unidade, 
+      i.local,
+      i.prisoes.length,
+      i.armas.length,
+      i.municoes.length,
+      i.drogas.reduce((a,b)=>a+b,0).toFixed(2)
+    ]);
+  } else {
+    const campoMapping = { 'prisoes': mapField('PRISÕES'), 'armas': mapField('ARMAS'), 'municoes': mapField('MUNIÇÕES'), 'drogas': mapField('DROGAS') };
+    headers = ['RO', 'Data', 'Unidade', 'Local', 'Conteúdo'];
+    tableData = modalDetalhesDados.map(r => [
+      r[mapField('REG OCOR')], 
+      r[mapField('DT EVENTO')], 
+      r[mapField('UNID (DP)')], 
+      r[mapField('LOCAL')], 
+      (modalDetalhesTipo === 'registros' ? 'OK' : 
+        modalDetalhesTipo === 'drogas' ? r[campoMapping[modalDetalhesTipo]] + ' kg' : 
+        r[campoMapping[modalDetalhesTipo]])
+    ]);
+  }
 
   doc.autoTable({
     startY: 90,
-    head: [modalDetalhesTipo === 'locais' ? ['Local', 'Total Entradas', 'Prisões', 'Armas'] : ['RO', 'Data', 'Unidade', 'Local', 'Conteúdo']],
+    head: [headers],
     body: tableData.slice(0, 50),
     theme: 'grid',
-    headStyles: {fillColor: cardInfo.cor}
+    headStyles: {fillColor: cardInfo.cor},
+    styles: {fontSize: 8},
+    margin: { left: 10, right: 10 }
   });
 
   const pdfDataUri = doc.output('datauristring');
@@ -1065,51 +1226,102 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
   fecharModal('modalDetalhes');
 };
 
-// PDF COMPLETO
+// PDF COMPLETO - CORRIGIDO (Melhor distribuição das colunas)
 document.getElementById('btnPdf').onclick = () => {
   const mapField = (original) => original.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
   const dados = getDadosFiltrados();
-  getPdfHeader(doc, "RELATORIO COMPLETO OPERACAO BARRICADA ZERO", true);
+  getPdfHeader(doc, "RELATÓRIO COMPLETO OPERAÇÃO BARRICADA ZERO", true);
 
-    // Cálculo do total de R.O.'s únicos para o PDF Completo
+  // Cálculo do total de R.O.'s únicos para o PDF Completo
   const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size;
 
-  // Adicionando a métrica de Drogas (Volume)
-  const totalDrogas = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS (KG)')] || 0), 0);
+  // CORREÇÃO: Contabiliza quantidade de itens de drogas
+  const totalDrogasItens = dados.reduce((a, r) => {
+    const drogasValue = r[mapField('DROGAS')];
+    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
+      return a + 1;
+    }
+    return a;
+  }, 0);
 
+  // Ajuste nas métricas - melhor distribuição horizontal
   const metrics = [
     {t: "R.O.s Únicos", v: totalROsUnicos, c: {r:59, g:130, b:246}},
-    {t: "Entradas (Linhas)", v: dados.length, c: {r:90, g:103, b:216}},
+    {t: "Entradas", v: dados.length, c: {r:90, g:103, b:216}},
     {t: "Prisões", v: dados.reduce((a,r)=>a+((r[mapField('PRISÕES')] || '').trim() !== ''?1:0),0), c: {r:220, g:38, b:38}},
     {t: "Armas", v: dados.reduce((a,r)=>a+((r[mapField('ARMAS')] || '').trim() !== ''?1:0),0), c: {r:245, g:158, b:11}},
-    {t: "Drogas (Kg)", v: totalDrogas.toFixed(2), c: {r:5, g:150, b:105}},
-    {t: "Locais (Com Itens)", v: new Set(dados.map(r=>r[mapField('LOCAL')]).filter(Boolean)).size, c: {r:6, g:182, b:212}}
+    {t: "Drogas (Itens)", v: totalDrogasItens, c: {r:5, g:150, b:105}},
+    {t: "Locais", v: new Set(dados.map(r=>r[mapField('LOCAL')]).filter(Boolean)).size, c: {r:6, g:182, b:212}}
   ];
 
+  // Distribuição otimizada dos cards métricos
+  const cardWidth = 45;
+  const cardGap = 2;
+  const startX = 5;
+  
   metrics.forEach((m, i) => {
-    const cardWidth = 45;
-    const cardGap = 2;
-    const startX = 10; // Margem esquerda
     const x = startX + (i * (cardWidth + cardGap));
     
-    doc.setFillColor(m.c.r, m.c.g, m.c.b);
-    doc.roundedRect(x, 50, cardWidth, 25, 3, 3, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    doc.text(m.t.toUpperCase(), x + 2, 58);
-    doc.setFontSize(12);
-    doc.text(String(m.v), x + 2, 68);
+    // Verifica se o card cabe na página (297mm de largura em landscape)
+    if (x + cardWidth < 292) {
+      doc.setFillColor(m.c.r, m.c.g, m.c.b);
+      doc.roundedRect(x, 50, cardWidth, 25, 3, 3, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      // Quebra de texto para títulos longos
+      const titleLines = doc.splitTextToSize(m.t.toUpperCase(), cardWidth - 4);
+      doc.text(titleLines, x + 2, 57);
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(String(m.v), x + 2, 68);
+    }
   });
 
+  // CORREÇÃO PRINCIPAL: Ajuste das larguras das colunas para melhor distribuição
   doc.autoTable({
     startY: 85,
-    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES']],
-    body: dados.map(r => [r[mapField('REG OCOR')], r[mapField('DT EVENTO')], r[mapField('DEPTO')], r[mapField('UNID (DP)')], r[mapField('LOCAL')], r[mapField('PRISÕES')], r[mapField('ARMAS')], r[mapField('MUNIÇÕES')]]),
+    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES', 'DROGAS']],
+    body: dados.map(r => [
+      r[mapField('REG OCOR')] || '', 
+      r[mapField('DT EVENTO')] || '', 
+      r[mapField('DEPTO')] || '', 
+      r[mapField('UNID (DP)')] || '', 
+      r[mapField('LOCAL')] || '', 
+      r[mapField('PRISÕES')] || '0', 
+      r[mapField('ARMAS')] || '0', 
+      r[mapField('MUNIÇÕES')] || '0',
+      r[mapField('DROGAS')] || '0'
+    ]),
     theme: 'striped',
-    headStyles: {fillColor: [30, 64, 175]},
-    styles: {fontSize: 8}
+    headStyles: {fillColor: [30, 64, 175], fontSize: 7, cellPadding: 2},
+    styles: {fontSize: 6, cellPadding: 2, overflow: 'linebreak'},
+    columnStyles: {
+      // Distribuição otimizada das colunas (total: 287mm)
+      0: {cellWidth: 25},  // RO
+      1: {cellWidth: 20},  // DATA
+      2: {cellWidth: 25},  // DEPTO
+      3: {cellWidth: 30},  // UNID
+      4: {cellWidth: 45},  // LOCAL (maior para nomes longos)
+      5: {cellWidth: 45},  // PRISÕES (maior para nomes)
+      6: {cellWidth: 35},  // ARMAS
+      7: {cellWidth: 25},  // MUNIÇÕES
+      8: {cellWidth: 37}   // DROGAS
+    },
+    margin: { left: 5, right: 5 },
+    tableWidth: 287,
+    pageBreak: 'auto',
+    didDrawPage: function(data) {
+      // Adiciona número da página
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(
+        `Página ${data.pageNumber}`, 
+        data.settings.margin.left, 
+        doc.internal.pageSize.height - 10
+      );
+    }
   });
 
   const pdfDataUri = doc.output('datauristring');
@@ -1148,7 +1360,13 @@ document.getElementById('btnPdfPerf').onclick = function() {
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
-    porDepto[d].drog += parseFloat(r[mapField('DROGAS (KG)')] || 0);
+    
+    // CORREÇÃO: Contabiliza itens de drogas
+    const drogasValue = r[mapField('DROGAS')];
+    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
+      porDepto[d].drog += 1;
+    }
+    
     porDepto[d].regs.push(r);
   });
   
@@ -1170,86 +1388,68 @@ document.getElementById('btnPdfPerf').onclick = function() {
   // 2. Adicionar Cabeçalho 
   getPdfHeader(doc, "ANÁLISE DE PERFORMANCE POR DEPARTAMENTO", true);
 
-  // 3. Adicionar Métricas Chave (Cards)
+  // 3. Adicionar Métricas Chave (Cards) com margens ajustadas
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text("Métricas Chave da Performance", margin, y);
   y += 5;
 
-  const totalPrisoes = deptosData.reduce((a, d) => a + d.pris, 0);
-  const totalArmas = deptosData.reduce((a, d) => a + d.arm, 0);
-  const totalOps = deptosData.reduce((a, d) => a + d.ops, 0);
-  const totalRegs = dados.length;
-  const totalROsUnicos = deptosData.reduce((a, d) => a + d.ops, 0); // R.O.s Únicos é o mesmo que Operações (ops)
+  const totalPrisoes = deptosData.reduce((a, d) => a + d.pris, 0) || 0;
+  const totalArmas = deptosData.reduce((a, d) => a + d.arm, 0) || 0;
+  const totalOps = deptosData.reduce((a, d) => a + d.ops, 0) || 0;
+  const totalRegs = dados.length || 0;
+  const totalDrogas = deptosData.reduce((a, d) => a + d.drog, 0) || 0;
 
   const metrics = [
     {t: "Total R.O.s Únicos", v: totalOps, c: [59, 130, 246]},
-    {t: "Total Prisoes", v: totalPrisoes, c: [220, 38, 38]},
+    {t: "Total Prisões", v: totalPrisoes, c: [220, 38, 38]},
     {t: "Total Armas", v: totalArmas, c: [245, 158, 11]},
-    {t: "Total Entradas", v: totalRegs, c: [5, 150, 105]},
-    {t: "Total R.O.s Únicos", v: totalROsUnicos, c: [6, 182, 212]}
+    {t: "Total Drogas (Itens)", v: totalDrogas, c: [5, 150, 105]},
+    {t: "Total Entradas", v: totalRegs, c: [6, 182, 212]}
   ];
 
+  // Ajusta posição dos cards para caber na página
   metrics.forEach((m, i) => {
-    const x = margin + (i * 70);
-    doc.setFillColor(m.c[0], m.c[1], m.c[2]);
-    doc.roundedRect(x, y, 65, 20, 2, 2, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'normal');
-    doc.text(m.t.toUpperCase(), x + 3, y + 8);
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text(String(m.v), x + 3, y + 16);
+    const cardWidth = 55;
+    const x = margin + (i * (cardWidth + 5));
+    if (x + cardWidth < width - margin) {
+      doc.setFillColor(m.c[0], m.c[1], m.c[2]);
+      doc.roundedRect(x, y, cardWidth, 20, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'normal');
+      doc.text(m.t.toUpperCase(), x + 3, y + 8, {maxWidth: cardWidth - 6});
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text(String(m.v), x + 3, y + 16);
+    }
   });
   y += 30;
 
-  // 4. Adicionar Gráficos (Conversão do canvas para imagem PNG)
-  doc.setFontSize(14);
-  doc.setFont(undefined, 'bold');
-  doc.text("Gráficos de Resultados", margin, y);
-  y += 5;
-
-  const chartPrisoes = document.getElementById('chartPrisoes')?.toDataURL('image/png');
-  const chartArmas = document.getElementById('chartArmas')?.toDataURL('image/png');
-  const chartOperacoes = document.getElementById('chartOperacoes')?.toDataURL('image/png');
-  const chartPizza = document.getElementById('chartPizza')?.toDataURL('image/png');
-  
-  const chartHeight = 65;
-  const chartWidth = width/2 - margin*2;
-
-  // Linha 1 de gráficos
-  if(chartPrisoes) doc.addImage(chartPrisoes, 'PNG', margin, y, chartWidth, chartHeight);
-  if(chartArmas) doc.addImage(chartArmas, 'PNG', width/2 + margin/2, y, chartWidth, chartHeight);
-  y += chartHeight + 10;
-  
-  // Linha 2 de gráficos
-  if(chartOperacoes) doc.addImage(chartOperacoes, 'PNG', margin, y, chartWidth, chartHeight);
-  if(chartPizza) doc.addImage(chartPizza, 'PNG', width/2 + margin/2, y, chartWidth, chartHeight);
-  y += chartHeight + 15;
-
-  // 5. Tabela de Resumo por Departamento
+  // 4. Tabela de Resumo por Departamento com margens ajustadas
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text("Resumo por Departamento (R.O.s Únicos)", margin, y);
   y += 5;
 
   const summaryData = deptosData.map(d => [
-    d.depto, d.ops, d.pris, d.arm, d.mun, d.drog.toFixed(2), d.eficiencia
+    d.depto, d.ops, d.pris, d.arm, d.mun, d.drog, d.eficiencia
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Kg)', 'Eficiência']],
+    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Itens)', 'Eficiência']],
     body: summaryData,
     theme: 'grid',
     headStyles: {fillColor: [30, 64, 175]},
     styles: {fontSize: 8},
-    margin: { left: margin, right: margin }
+    margin: { left: margin, right: margin },
+    tableWidth: width - (2 * margin),
+    pageBreak: 'auto'
   });
   y = doc.autoTable.previous.finalY + 15;
 
-  // 6. Tabela de Registros Detalhados 
+  // 5. Tabela de Registros Detalhados com margens ajustadas
   if (y > 170) {
     doc.addPage();
     y = 20;
@@ -1267,18 +1467,21 @@ document.getElementById('btnPdfPerf').onclick = function() {
     r[mapField('UNID (DP)')], 
     r[mapField('LOCAL')], 
     r[mapField('FACÇÃO')], 
-    r[mapField('PRISÕES')], 
-    r[mapField('ARMAS')]
+    r[mapField('PRISÕES')] || '0', 
+    r[mapField('ARMAS')] || '0',
+    r[mapField('DROGAS')] || '0'
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['RO', 'Data', 'Depto', 'Unidade', 'Local', 'Facção', 'Prisões', 'Armas']],
+    head: [['RO', 'Data', 'Depto', 'Unidade', 'Local', 'Facção', 'Prisões', 'Armas', 'Drogas']],
     body: tableRecords,
     theme: 'striped',
     headStyles: {fillColor: [5, 150, 105]},
     styles: {fontSize: 7},
-    margin: { left: margin, right: margin }
+    margin: { left: margin, right: margin },
+    tableWidth: width - (2 * margin),
+    pageBreak: 'auto'
   });
 
   // 7. Exibir o PDF
@@ -1324,7 +1527,13 @@ document.getElementById('btnAnalise').onclick = () => {
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
-    porDepto[d].drog += parseFloat(r[mapField('DROGAS (KG)')] || 0);
+    
+    // CORREÇÃO: Contabiliza itens de drogas (não peso)
+    const drogasValue = r[mapField('DROGAS')];
+    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
+      porDepto[d].drog += 1;
+    }
+    
     porDepto[d].regs.push(r);
   });
   
@@ -1342,16 +1551,16 @@ document.getElementById('btnAnalise').onclick = () => {
     options: { plugins: { legend: { display: false }, title: { display: true, text: label } } }
   });
 
-  charts.p = config(document.getElementById('chartPrisoes'), 'Prisões', labels.map(l=>porDepto[l].pris), '#dc2626');
-  charts.a = config(document.getElementById('chartArmas'), 'Armas', labels.map(l=>porDepto[l].arm), '#f59e0b');
-  charts.o = config(document.getElementById('chartOperacoes'), 'R.O.s Únicos', labels.map(l=>porDepto[l].ops), '#3b82f6');
+  charts.p = config(document.getElementById('chartPrisoes'), 'Prisões', labels.map(l=>porDepto[l].pris || 0), '#dc2626');
+  charts.a = config(document.getElementById('chartArmas'), 'Armas', labels.map(l=>porDepto[l].arm || 0), '#f59e0b');
+  charts.o = config(document.getElementById('chartOperacoes'), 'R.O.s Únicos', labels.map(l=>porDepto[l].ops || 0), '#3b82f6');
   charts.z = new Chart(document.getElementById('chartPizza'), { 
     type: 'pie', 
     data: { 
       labels, 
       datasets: [{ 
         label: 'R.O.s Únicos', 
-        data: labels.map(l=>porDepto[l].ops), 
+        data: labels.map(l=>porDepto[l].ops || 0), 
         backgroundColor: ['#3b82f6', '#dc2626', '#f59e0b', '#8b5cf6', '#059669', '#06b6d4', '#eab308', '#f43f5e', '#a855f7', '#14b8a6', '#f97316', '#6366f1'] 
       }] 
     },
@@ -1365,8 +1574,9 @@ document.getElementById('btnAnalise').onclick = () => {
   const resumoDiv = document.getElementById('deptoResumo');
   resumoDiv.innerHTML = Object.entries(porDepto).map(([d, i]) => `
     <div class="depto-card"><h4>${d}</h4><div class="stats">
-      <div><strong>${i.ops}</strong> R.O.s Únicos</div><div><strong>${i.pris}</strong> Prisões</div>
-      <div><strong>${i.arm}</strong> Armas</div><div><strong>${i.drog.toFixed(2)}</strong> Drogas (Kg)</div><div><strong>${((i.pris+i.arm)/i.ops).toFixed(2)}</strong> Eficiência.</div>
+      <div><strong>${i.ops || 0}</strong> R.O.s Únicos</div><div><strong>${i.pris || 0}</strong> Prisões</div>
+      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drog || 0}</strong> Drogas (Itens)</div>
+      <div><strong>${((i.pris+i.arm+i.mun+i.drog)/i.ops || 0).toFixed(2)}</strong> Eficiência</div>
     </div></div>`).join('');
 
   document.getElementById('modalPerf').style.display = 'flex';
