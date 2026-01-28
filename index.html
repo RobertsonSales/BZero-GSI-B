@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OPERAÇAO BARRICADA ZERO - Análise de Operações - PCERJ</title>
+  <title>OPERAÇAO BARRICADA ZERO - Análise de Ações - PCERJ</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -670,7 +670,7 @@
   </div>
 
   <div class="footer">
-    <p>Operação Barricada Zero - Sistema de Inteligência Operacional | Desenvolvido para análise estratégica de Ações</p>
+    <p>Operação Barricada Zero - Análise Operacional | Visão estratégica das Ações</p>
     <p>© GSI - 2025 Todos os direitos reservados</p>
   </div>
 </div>
@@ -745,7 +745,7 @@
 </div>
 
 <script>
-// Constantes para mapeamento de colunas (Usadas após padronização)
+// Constantes para mapeamento de colunas
 const COLUNA_REGOCOR = 'REGOCOR';
 const COLUNA_DTEVENTO = 'DTEVENTO';
 const COLUNA_DEPTO = 'DEPTO';
@@ -755,9 +755,7 @@ const COLUNA_FACCAO = 'FACCAO';
 const COLUNA_PRISOES = 'PRISOES';
 const COLUNA_ARMAS = 'ARMAS';
 const COLUNA_MUNICOES = 'MUNICOES';
-const COLUNA_DROGAS = 'DROGAS(KG)'; // Mantendo o formato original se for o caso
-const COLUNA_RO = 'REG OCOR'; // Usando o nome completo para clareza, o mapeamento padronizado será REGOCOR
-const COLUNA_DROGAS_ITENS = 'DROGASITENS'; // Nova coluna para quantidade de itens de drogas
+const COLUNA_DROGAS = 'DROGAS(G)';
 
 function fecharModal(id) {
     document.getElementById(id).style.display = 'none';
@@ -766,11 +764,9 @@ function fecharModal(id) {
 // Conversor Excel → DD/MM/AAAA
 function converterDataExcel(serial) {
   if (!serial || typeof serial !== 'number' || serial < 1) {
-    // Tenta tratar como string de data no formato AAAA-MM-DD
     if (typeof serial === 'string') {
         const partes = serial.split('/');
-        if (partes.length === 3) return serial; // Já está no formato DD/MM/AAAA
-        // Se for string, retorna a própria string para evitar NaN
+        if (partes.length === 3) return serial;
         return serial.trim(); 
     }
     return "";
@@ -819,17 +815,13 @@ document.getElementById('fileInput').onchange = function(e) {
       if (!sheetName) throw new Error("Aba com dados (Registro/Operações) não encontrada!");
 
       const worksheet = workbook.Sheets[sheetName];
-      // Leitura para JSON, preservando o tipo para datas
       const json = XLSX.utils.sheet_to_json(worksheet, {header:1, defval:""});
 
-      // NOVIDADE: Mapeamento e padronização rigorosa dos cabeçalhos
-      // Remove espaços, caracteres especiais e transforma em maiúsculas
       const rawHeaders = json[0] || [];
       const headers = rawHeaders.map(h => 
         String(h).toUpperCase().trim().replace(/[^A-Z0-9]/g, '')
       );
       
-      // Mapeamento dos headers originais para os padronizados
       const headerMap = {};
       rawHeaders.forEach((h, i) => {
           if (h && headers[i]) {
@@ -844,15 +836,12 @@ document.getElementById('fileInput').onchange = function(e) {
       dadosOriginais = json.slice(1)
         .map(row => {
           let obj = {};
-          // Itera sobre os cabeçalhos PADRONIZADOS
           headers.forEach((h, i) => {
             const v = row[i];
             
-            // Tratamento específico de datas
             if (h === COLUNA_DTEVENTO.replace(/[^A-Z0-9]/g, '')) {
               obj[h] = converterDataExcel(v);
             } else {
-              // Converte para string e remove espaços, exceto para números
               obj[h] = String(v ?? '').trim();
             }
           });
@@ -925,7 +914,7 @@ function getDadosFiltrados() {
     (r[mapField('PRISÕES')] || '').trim() !== '' ||
     (r[mapField('ARMAS')] || '').trim() !== '' ||
     (r[mapField('MUNIÇÕES')] || '').trim() !== '' ||
-    (r[mapField('DROGAS (KG)')] || 0) > 0
+    (parseFloat(r[mapField('DROGAS (G)')] || 0) > 0)
   );
   
   const filtros = [
@@ -958,23 +947,26 @@ function mostrarDashboard(dados) {
   dashboard.innerHTML = '';
   
   const totalRegistros = dados.length || 0;
-  // Cálculo do total de R.O.'s únicos
   const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size || 0;
   const totalPrisoes = dados.reduce((a, r) => a + ((r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0), 0) || 0;
   const totalArmas = dados.reduce((a, r) => a + ((r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0), 0) || 0;
   const totalMunicoes = dados.reduce((a, r) => a + ((r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0), 0) || 0;
   
-  // CORREÇÃO: Contabiliza quantidade de itens de drogas (linhas com drogas)
-  const totalDrogasItens = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS (KG)')];
-    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
+  // CORREÇÃO: Contabiliza ocorrências com drogas (linhas com valor > 0)
+  const totalDrogasOcorrencias = dados.reduce((a, r) => {
+    const drogasValue = r[mapField('DROGAS (G)')];
+    if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
       return a + 1;
     }
     return a;
   }, 0) || 0;
   
   // Total de kg de drogas (mantido para referência)
-  const totalDrogasKg = dados.reduce((a, r) => a + parseFloat(r[mapField('DROGAS (KG)')] || 0), 0) || 0;
+  const totalDrogasKg = dados.reduce((a, r) => {
+    const drogasValue = r[mapField('DROGAS (G)')];
+    return a + (drogasValue && drogasValue !== '' ? parseFloat(drogasValue) || 0 : 0);
+  }, 0) || 0;
+  
   const locaisUnicos = new Set(dados.map(r => r[mapField('LOCAL')]).filter(Boolean)).size || 0;
   
   const cards = [
@@ -983,8 +975,8 @@ function mostrarDashboard(dados) {
     { id: 'prisoes', titulo: 'Prisões', subtitulo: 'Total de Prisões', valor: totalPrisoes, icone: 'fa-handcuffs', cor: '#dc2626', corEscura: '#991b1b' },
     { id: 'armas', titulo: 'Armas', subtitulo: 'Armas Apreendidas', valor: totalArmas, icone: 'fa-gun', cor: '#f59e0b', corEscura: '#d97706' },
     { id: 'municoes', titulo: 'Munições', subtitulo: 'Munições Apreendidas', valor: totalMunicoes, icone: 'fa-bullseye', cor: '#8b5cf6', corEscura: '#7c3aed' },
-    // CORREÇÃO: Card de Drogas agora mostra quantidade de itens de drogas
-    { id: 'drogas', titulo: 'Drogas', subtitulo: 'Itens com Droga Apreendida', valor: totalDrogasItens, icone: 'fa-capsules', cor: '#059669', corEscura: '#047857' },
+    // CORREÇÃO: Card de Drogas agora mostra ocorrências com entorpecentes
+    { id: 'drogas', titulo: 'Drogas', subtitulo: 'Ocorrências com Entorpecentes', valor: totalDrogasOcorrencias, icone: 'fa-capsules', cor: '#059669', corEscura: '#047857' },
     { id: 'locais', titulo: 'Locais', subtitulo: 'Locais Atuados (Com Itens)', valor: locaisUnicos, icone: 'fa-map-marker-alt', cor: '#06b6d4', corEscura: '#0891b2' }
   ];
 
@@ -1022,7 +1014,9 @@ function mostrarDetalhes(tipo, titulo) {
         locaisAgrupados[local].prisoes += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
         locaisAgrupados[local].armas += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
         locaisAgrupados[local].municoes += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
-        locaisAgrupados[local].drogas += parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0 ? 1 : 0;
+        
+        const drogasValue = r[mapField('DROGAS (G)')];
+        locaisAgrupados[local].drogas += (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) ? 1 : 0;
       }
     });
     modalDetalhesDados = Object.entries(locaisAgrupados).map(([local, info]) => ({ local, ...info }));
@@ -1064,8 +1058,10 @@ function mostrarDetalhes(tipo, titulo) {
         if ((r[mapField('MUNIÇÕES')] || '').trim() !== '') {
           rosAgrupados[ro].municoes.push(r[mapField('MUNIÇÕES')]);
         }
-        if (parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0) {
-          rosAgrupados[ro].drogas.push(parseFloat(r[mapField('DROGAS (KG)')]));
+        
+        const drogasValue = r[mapField('DROGAS (G)')];
+        if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
+          rosAgrupados[ro].drogas.push(parseFloat(drogasValue));
         }
       }
     });
@@ -1081,32 +1077,36 @@ function mostrarDetalhes(tipo, titulo) {
             ${i.prisoes.length > 0 ? `<span class="item-badge item-prisao">Prisões: ${i.prisoes.length}</span>` : ''}
             ${i.armas.length > 0 ? `<span class="item-badge item-arma">Armas: ${i.armas.length}</span>` : ''}
             ${i.municoes.length > 0 ? `<span class="item-badge item-municao">Munições: ${i.municoes.length}</span>` : ''}
-            ${i.drogas.length > 0 ? `<span class="item-badge item-droga">Drogas: ${i.drogas.length} itens (${i.drogas.reduce((a,b)=>a+b,0).toFixed(2)} kg)</span>` : ''}
+            ${i.drogas.length > 0 ? `<span class="item-badge item-droga">Drogas: ${i.drogas.length} ocorrências (${i.drogas.reduce((a,b)=>a+b,0).toFixed(2)} kg)</span>` : ''}
           </div>
         </div>
       </div>`).join('')}</div>`;
   } else if (tipo === 'drogas') {
-    // CORREÇÃO: Filtra apenas registros que têm drogas e exibe a lista
-    modalDetalhesDados = dadosFiltradosAtual.filter(r => 
-      parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0
-    );
+    // CORREÇÃO: Filtra apenas registros que têm drogas (valor > 0) - cada linha é uma ocorrência
+    modalDetalhesDados = dadosFiltradosAtual.filter(r => {
+      const drogasValue = r[mapField('DROGAS (G)')];
+      return drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0;
+    });
 
-    modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.slice(0, 100).map(r => `
+    modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.slice(0, 100).map(r => {
+      const drogasValue = parseFloat(r[mapField('DROGAS (G)')]) || 0;
+      return `
       <div class="detalhe-item">
         <div class="detalhe-info">
           <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">
-            ${r[mapField('DROGAS (KG)')]} kg
+            ${drogasValue.toFixed(2)} kg
           </span>
-          <span class="detalhe-local">${r[mapField('LOCAL')]} - ${r[mapField('UNID (DP)')]}</span>
-          <span class="detalhe-data">${r[mapField('DT EVENTO')]} | RO: ${r[mapField('REG OCOR')]}</span>
+          <span class="detalhe-local">${r[mapField('LOCAL')] || 'N/I'} - ${r[mapField('UNID (DP)')] || 'N/I'}</span>
+          <span class="detalhe-data">${r[mapField('DT EVENTO')] || 'N/I'} | RO: ${r[mapField('REG OCOR')] || 'N/I'}</span>
           <div class="detalhe-itens">
             ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
             ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
             ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
-            <span class="item-badge item-droga">Droga: ${r[mapField('DROGAS (KG)')]} kg</span>
+            <span class="item-badge item-droga">Droga: ${drogasValue.toFixed(2)} kg</span>
           </div>
         </div>
-      </div>`).join('')}</div>`;
+      </div>`;
+    }).join('')}</div>`;
   } else {
     // Filtragem rigorosa: remove registros onde o dado da categoria está vazio
     const campoMapping = { 
@@ -1132,7 +1132,7 @@ function mostrarDetalhes(tipo, titulo) {
             ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
             ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
             ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
-            ${parseFloat(r[mapField('DROGAS (KG)')] || 0) > 0 ? `<span class="item-badge item-droga">Droga: ${r[mapField('DROGAS (KG)')]} kg</span>` : ''}
+            ${((r[mapField('DROGAS (G)')] && r[mapField('DROGAS (G)')] !== '' && !isNaN(parseFloat(r[mapField('DROGAS (G)')])) && parseFloat(r[mapField('DROGAS (G)')]) > 0) ? `<span class="item-badge item-droga">Droga: ${parseFloat(r[mapField('DROGAS (G)')]).toFixed(2)} kg</span>` : '')}
           </div>
         </div>
       </div>`).join('')}</div>`;
@@ -1192,10 +1192,10 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
   let headers = [];
   
   if (modalDetalhesTipo === 'locais') {
-    headers = ['Local', 'Total Entradas', 'Prisões', 'Armas', 'Munições', 'Drogas'];
+    headers = ['Local', 'Total Entradas', 'Prisões', 'Armas', 'Munições', 'Drogas (Ocorrências)'];
     tableData = modalDetalhesDados.map(i => [i.local, i.count, i.prisoes, i.armas, i.municoes, i.drogas]);
   } else if (modalDetalhesTipo === 'ros') {
-    headers = ['R.O.', 'Data', 'Unidade', 'Local', 'Prisões', 'Armas', 'Munições', 'Drogas (kg)'];
+    headers = ['R.O.', 'Data', 'Unidade', 'Local', 'Prisões', 'Armas', 'Munições', 'Drogas (g)'];
     tableData = modalDetalhesDados.map(i => [
       i.ro, 
       i.data, 
@@ -1207,13 +1207,13 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
       i.drogas.reduce((a,b)=>a+b,0).toFixed(2)
     ]);
   } else if (modalDetalhesTipo === 'drogas') {
-    headers = ['RO', 'Data', 'Unidade', 'Local', 'Drogas (kg)', 'Prisões', 'Armas', 'Munições'];
+    headers = ['RO', 'Data', 'Unidade', 'Local', 'Drogas (g)', 'Prisões', 'Armas', 'Munições'];
     tableData = modalDetalhesDados.map(r => [
       r[mapField('REG OCOR')], 
       r[mapField('DT EVENTO')], 
       r[mapField('UNID (DP)')], 
       r[mapField('LOCAL')], 
-      r[mapField('DROGAS (KG)')] || '0',
+      parseFloat(r[mapField('DROGAS (G)')] || 0).toFixed(2),
       r[mapField('PRISÕES')] || '0',
       r[mapField('ARMAS')] || '0',
       r[mapField('MUNIÇÕES')] || '0'
@@ -1249,7 +1249,7 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
   fecharModal('modalDetalhes');
 };
 
-// PDF COMPLETO - CORRIGIDO (Melhor distribuição das colunas)
+// PDF COMPLETO
 document.getElementById('btnPdf').onclick = () => {
   const mapField = (original) => original.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
   const { jsPDF } = window.jspdf;
@@ -1257,29 +1257,27 @@ document.getElementById('btnPdf').onclick = () => {
   const dados = getDadosFiltrados();
   getPdfHeader(doc, "RELATÓRIO COMPLETO OPERAÇÃO BARRICADA ZERO", true);
 
-  // Cálculo do total de R.O.'s únicos para o PDF Completo
   const totalROsUnicos = new Set(dados.map(r => r[mapField(COLUNA_REGOCOR)]).filter(Boolean)).size;
 
-  // CORREÇÃO: Contabiliza quantidade de itens de drogas
-  const totalDrogasItens = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS (KG)')];
-    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
+  // CORREÇÃO: Contabiliza ocorrências com drogas
+  const totalDrogasOcorrencias = dados.reduce((a, r) => {
+    const drogasValue = r[mapField('DROGAS (G)')];
+    if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
       return a + 1;
     }
     return a;
   }, 0);
 
-  // Ajuste nas métricas - melhor distribuição horizontal
+  // Ajuste nas métricas
   const metrics = [
     {t: "R.O.s Únicos", v: totalROsUnicos, c: {r:59, g:130, b:246}},
     {t: "Entradas", v: dados.length, c: {r:90, g:103, b:216}},
     {t: "Prisões", v: dados.reduce((a,r)=>a+((r[mapField('PRISÕES')] || '').trim() !== ''?1:0),0), c: {r:220, g:38, b:38}},
     {t: "Armas", v: dados.reduce((a,r)=>a+((r[mapField('ARMAS')] || '').trim() !== ''?1:0),0), c: {r:245, g:158, b:11}},
-    {t: "Drogas (Itens)", v: totalDrogasItens, c: {r:5, g:150, b:105}},
+    {t: "Drogas (Ocorrências)", v: totalDrogasOcorrencias, c: {r:5, g:150, b:105}},
     {t: "Locais", v: new Set(dados.map(r=>r[mapField('LOCAL')]).filter(Boolean)).size, c: {r:6, g:182, b:212}}
   ];
 
-  // Distribuição otimizada dos cards métricos
   const cardWidth = 45;
   const cardGap = 2;
   const startX = 5;
@@ -1287,13 +1285,11 @@ document.getElementById('btnPdf').onclick = () => {
   metrics.forEach((m, i) => {
     const x = startX + (i * (cardWidth + cardGap));
     
-    // Verifica se o card cabe na página (297mm de largura em landscape)
     if (x + cardWidth < 292) {
       doc.setFillColor(m.c.r, m.c.g, m.c.b);
       doc.roundedRect(x, 50, cardWidth, 25, 3, 3, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
-      // Quebra de texto para títulos longos
       const titleLines = doc.splitTextToSize(m.t.toUpperCase(), cardWidth - 4);
       doc.text(titleLines, x + 2, 57);
       doc.setFontSize(12);
@@ -1302,10 +1298,9 @@ document.getElementById('btnPdf').onclick = () => {
     }
   });
 
-  // CORREÇÃO PRINCIPAL: Ajuste das larguras das colunas para melhor distribuição
   doc.autoTable({
     startY: 85,
-    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES', 'DROGAS (KG)']],
+    head: [['RO', 'DATA', 'DEPTO', 'UNID', 'LOCAL', 'PRISÕES', 'ARMAS', 'MUNIÇÕES', 'DROGAS (G)']],
     body: dados.map(r => [
       r[mapField('REG OCOR')] || '', 
       r[mapField('DT EVENTO')] || '', 
@@ -1315,28 +1310,26 @@ document.getElementById('btnPdf').onclick = () => {
       r[mapField('PRISÕES')] || '0', 
       r[mapField('ARMAS')] || '0', 
       r[mapField('MUNIÇÕES')] || '0',
-      r[mapField('DROGAS (KG)')] || '0'
+      r[mapField('DROGAS (G)')] || '0'
     ]),
     theme: 'striped',
     headStyles: {fillColor: [30, 64, 175], fontSize: 7, cellPadding: 2},
     styles: {fontSize: 6, cellPadding: 2, overflow: 'linebreak'},
     columnStyles: {
-      // Distribuição otimizada das colunas (total: 287mm)
-      0: {cellWidth: 25},  // RO
-      1: {cellWidth: 20},  // DATA
-      2: {cellWidth: 25},  // DEPTO
-      3: {cellWidth: 30},  // UNID
-      4: {cellWidth: 45},  // LOCAL (maior para nomes longos)
-      5: {cellWidth: 45},  // PRISÕES (maior para nomes)
-      6: {cellWidth: 35},  // ARMAS
-      7: {cellWidth: 25},  // MUNIÇÕES
-      8: {cellWidth: 37}   // DROGAS (KG)
+      0: {cellWidth: 25},
+      1: {cellWidth: 20},
+      2: {cellWidth: 25},
+      3: {cellWidth: 30},
+      4: {cellWidth: 45},
+      5: {cellWidth: 45},
+      6: {cellWidth: 35},
+      7: {cellWidth: 25},
+      8: {cellWidth: 37}
     },
     margin: { left: 5, right: 5 },
     tableWidth: 287,
     pageBreak: 'auto',
     didDrawPage: function(data) {
-      // Adiciona número da página
       doc.setFontSize(8);
       doc.setTextColor(100);
       doc.text(
@@ -1379,15 +1372,15 @@ document.getElementById('btnPdfPerf').onclick = function() {
       operacoesPorDepto[d].add(regocor);
     }
     
-    if(!porDepto[d]) porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drogItens:0, regs:[]};
+    if(!porDepto[d]) porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drogOcorrencias:0, regs:[]};
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
     
-    // CORREÇÃO: Contabiliza itens de drogas
-    const drogasValue = r[mapField('DROGAS (KG)')];
-    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
-      porDepto[d].drogItens += 1;
+    // CORREÇÃO: Contabiliza ocorrências com drogas
+    const drogasValue = r[mapField('DROGAS (G)')];
+    if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
+      porDepto[d].drogOcorrencias += 1;
     }
     
     porDepto[d].regs.push(r);
@@ -1403,15 +1396,15 @@ document.getElementById('btnPdfPerf').onclick = function() {
     pris: i.pris,
     arm: i.arm,
     mun: i.mun,
-    drogItens: i.drogItens,
-    eficiencia: (i.ops > 0) ? ((i.pris + i.arm + i.mun + i.drogItens) / i.ops).toFixed(2) : '0.00',
+    drogOcorrencias: i.drogOcorrencias,
+    eficiencia: (i.ops > 0) ? ((i.pris + i.arm + i.mun + i.drogOcorrencias) / i.ops).toFixed(2) : '0.00',
     regs: i.regs
   }));
   
   // 2. Adicionar Cabeçalho 
   getPdfHeader(doc, "ANÁLISE DE PERFORMANCE POR DEPARTAMENTO", true);
 
-  // 3. Adicionar Métricas Chave (Cards) com margens ajustadas
+  // 3. Adicionar Métricas Chave
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text("Métricas Chave da Performance", margin, y);
@@ -1421,17 +1414,16 @@ document.getElementById('btnPdfPerf').onclick = function() {
   const totalArmas = deptosData.reduce((a, d) => a + d.arm, 0) || 0;
   const totalOps = deptosData.reduce((a, d) => a + d.ops, 0) || 0;
   const totalRegs = dados.length || 0;
-  const totalDrogasItens = deptosData.reduce((a, d) => a + d.drogItens, 0) || 0;
+  const totalDrogasOcorrencias = deptosData.reduce((a, d) => a + d.drogOcorrencias, 0) || 0;
 
   const metrics = [
     {t: "Total R.O.s Únicos", v: totalOps, c: [59, 130, 246]},
     {t: "Total Prisões", v: totalPrisoes, c: [220, 38, 38]},
     {t: "Total Armas", v: totalArmas, c: [245, 158, 11]},
-    {t: "Total Drogas (Itens)", v: totalDrogasItens, c: [5, 150, 105]},
+    {t: "Total Ocorrências c/ Droga", v: totalDrogasOcorrencias, c: [5, 150, 105]},
     {t: "Total Entradas", v: totalRegs, c: [6, 182, 212]}
   ];
 
-  // Ajusta posição dos cards para caber na página
   metrics.forEach((m, i) => {
     const cardWidth = 55;
     const x = margin + (i * (cardWidth + 5));
@@ -1449,19 +1441,19 @@ document.getElementById('btnPdfPerf').onclick = function() {
   });
   y += 30;
 
-  // 4. Tabela de Resumo por Departamento com margens ajustadas
+  // 4. Tabela de Resumo por Departamento
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text("Resumo por Departamento (R.O.s Únicos)", margin, y);
   y += 5;
 
   const summaryData = deptosData.map(d => [
-    d.depto, d.ops, d.pris, d.arm, d.mun, d.drogItens, d.eficiencia
+    d.depto, d.ops, d.pris, d.arm, d.mun, d.drogOcorrencias, d.eficiencia
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Itens)', 'Eficiência']],
+    head: [['Departamento', 'R.O.s Únicos', 'Prisões', 'Armas', 'Munições', 'Drogas (Ocorrências)', 'Eficiência']],
     body: summaryData,
     theme: 'grid',
     headStyles: {fillColor: [30, 64, 175]},
@@ -1472,7 +1464,7 @@ document.getElementById('btnPdfPerf').onclick = function() {
   });
   y = doc.autoTable.previous.finalY + 15;
 
-  // 5. Tabela de Registros Detalhados com margens ajustadas
+  // 5. Tabela de Registros Detalhados
   if (y > 170) {
     doc.addPage();
     y = 20;
@@ -1492,12 +1484,12 @@ document.getElementById('btnPdfPerf').onclick = function() {
     r[mapField('FACÇÃO')], 
     r[mapField('PRISÕES')] || '0', 
     r[mapField('ARMAS')] || '0',
-    r[mapField('DROGAS (KG)')] || '0'
+    r[mapField('DROGAS (G)')] || '0'
   ]);
 
   doc.autoTable({
     startY: y,
-    head: [['RO', 'Data', 'Depto', 'Unidade', 'Local', 'Facção', 'Prisões', 'Armas', 'Drogas (Kg)']],
+    head: [['RO', 'Data', 'Depto', 'Unidade', 'Local', 'Facção', 'Prisões', 'Armas', 'Drogas (g)']],
     body: tableRecords,
     theme: 'striped',
     headStyles: {fillColor: [5, 150, 105]},
@@ -1518,15 +1510,13 @@ document.getElementById('btnPdfPerf').onclick = function() {
   document.getElementById('modalPDFViewer').style.display = 'flex';
 };
 
-
-// PERFORMANCE (CORRIGIDO - Contagem precisa por departamento)
+// PERFORMANCE
 document.getElementById('btnAnalise').onclick = () => {
   const mapField = (original) => original.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
   const dados = getDadosFiltrados();
   dadosFiltradosAtual = dados;
   const porDepto = {};
   
-  // CORREÇÃO: Agrupar por REG OCOR único para contar operações distintas
   const operacoesPorDepto = {};
   
   dados.forEach(r => {
@@ -1537,30 +1527,27 @@ document.getElementById('btnAnalise').onclick = () => {
       operacoesPorDepto[d] = new Set();
     }
     
-    // Adiciona o REG OCOR ao conjunto (evita duplicatas)
     if(regocor) {
       operacoesPorDepto[d].add(regocor);
     }
     
-    // Acumula dados de produtos
     if(!porDepto[d]) {
-      porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drogItens:0, regs:[]};
+      porDepto[d] = {ops:0, pris:0, arm:0, mun:0, drogOcorrencias:0, regs:[]};
     }
     
     porDepto[d].pris += (r[mapField('PRISÕES')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].arm += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
     
-    // CORREÇÃO: Contabiliza itens de drogas
-    const drogasValue = r[mapField('DROGAS (KG)')];
-    if (drogasValue && drogasValue !== '' && parseFloat(drogasValue) > 0) {
-      porDepto[d].drogItens += 1;
+    // CORREÇÃO: Contabiliza ocorrências com drogas
+    const drogasValue = r[mapField('DROGAS (G)')];
+    if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
+      porDepto[d].drogOcorrencias += 1;
     }
     
     porDepto[d].regs.push(r);
   });
   
-  // Define a contagem de operações baseada em REG OCOR únicos
   Object.keys(porDepto).forEach(d => {
     porDepto[d].ops = operacoesPorDepto[d] ? operacoesPorDepto[d].size : 0;
   });
@@ -1598,8 +1585,8 @@ document.getElementById('btnAnalise').onclick = () => {
   resumoDiv.innerHTML = Object.entries(porDepto).map(([d, i]) => `
     <div class="depto-card"><h4>${d}</h4><div class="stats">
       <div><strong>${i.ops || 0}</strong> R.O.s Únicos</div><div><strong>${i.pris || 0}</strong> Prisões</div>
-      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drogItens || 0}</strong> Drogas (Itens)</div>
-      <div><strong>${((i.pris+i.arm+i.mun+i.drogItens)/i.ops || 0).toFixed(2)}</strong> Eficiência</div>
+      <div><strong>${i.arm || 0}</strong> Armas</div><div><strong>${i.drogOcorrencias || 0}</strong> Drogas (Ocorrências)</div>
+      <div><strong>${((i.pris+i.arm+i.mun+i.drogOcorrencias)/i.ops || 0).toFixed(2)}</strong> Eficiência</div>
     </div></div>`).join('');
 
   document.getElementById('modalPerf').style.display = 'flex';
