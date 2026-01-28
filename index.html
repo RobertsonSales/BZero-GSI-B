@@ -914,7 +914,7 @@ function getDadosFiltrados() {
     (r[mapField('PRISÕES')] || '').trim() !== '' ||
     (r[mapField('ARMAS')] || '').trim() !== '' ||
     (r[mapField('MUNIÇÕES')] || '').trim() !== '' ||
-    (parseFloat(r[mapField('DROGAS (G)')] || 0) > 0)
+    (parseFloat(r[mapField('DROGAS (KG)')] || 0)> 0)
   );
   
   const filtros = [
@@ -954,7 +954,7 @@ function mostrarDashboard(dados) {
   
   // CORREÇÃO: Contabiliza ocorrências com drogas (linhas com valor > 0)
   const totalDrogasOcorrencias = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS (G)')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
       return a + 1;
     }
@@ -963,7 +963,7 @@ function mostrarDashboard(dados) {
   
   // Total de kg de drogas (mantido para referência)
   const totalDrogasKg = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS (G)')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     return a + (drogasValue && drogasValue !== '' ? parseFloat(drogasValue) || 0 : 0);
   }, 0) || 0;
   
@@ -1015,7 +1015,7 @@ function mostrarDetalhes(tipo, titulo) {
         locaisAgrupados[local].armas += (r[mapField('ARMAS')] || '').trim() !== '' ? 1 : 0;
         locaisAgrupados[local].municoes += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
         
-        const drogasValue = r[mapField('DROGAS (G)')];
+        const drogasValue = r[mapField('DROGAS (KG)')];
         locaisAgrupados[local].drogas += (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) ? 1 : 0;
       }
     });
@@ -1059,7 +1059,7 @@ function mostrarDetalhes(tipo, titulo) {
           rosAgrupados[ro].municoes.push(r[mapField('MUNIÇÕES')]);
         }
         
-        const drogasValue = r[mapField('DROGAS (G)')];
+        const drogasValue = r[mapField('DROGAS (KG)')];
         if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
           rosAgrupados[ro].drogas.push(parseFloat(drogasValue));
         }
@@ -1077,24 +1077,24 @@ function mostrarDetalhes(tipo, titulo) {
             ${i.prisoes.length > 0 ? `<span class="item-badge item-prisao">Prisões: ${i.prisoes.length}</span>` : ''}
             ${i.armas.length > 0 ? `<span class="item-badge item-arma">Armas: ${i.armas.length}</span>` : ''}
             ${i.municoes.length > 0 ? `<span class="item-badge item-municao">Munições: ${i.municoes.length}</span>` : ''}
-            ${i.drogas.length > 0 ? `<span class="item-badge item-droga">Drogas: ${i.drogas.length} ocorrências (${i.drogas.reduce((a,b)=>a+b,0).toFixed(2)} kg)</span>` : ''}
+            ${i.drogas.length > 0 ? `<span class="item-badge item-droga">Drogas: ${i.drogas.length} ocorrências (${i.drogas.reduce((a,b)=>a+b,0).toFixed(2)} g)</span>` : ''}
           </div>
         </div>
       </div>`).join('')}</div>`;
   } else if (tipo === 'drogas') {
     // CORREÇÃO: Filtra apenas registros que têm drogas (valor > 0) - cada linha é uma ocorrência
     modalDetalhesDados = dadosFiltradosAtual.filter(r => {
-      const drogasValue = r[mapField('DROGAS (G)')];
+      const drogasValue = r[mapField('DROGAS (KG)')];
       return drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0;
     });
 
     modalBody.innerHTML = `<div class="detalhes-lista">${modalDetalhesDados.slice(0, 100).map(r => {
-      const drogasValue = parseFloat(r[mapField('DROGAS (G)')]) || 0;
+      const drogasValue = parseFloat(r[mapField('DROGAS (KG)')]) || 0;
       return `
       <div class="detalhe-item">
         <div class="detalhe-info">
           <span class="detalhe-valor" style="font-size:1.2rem; color: #1e3a8a">
-            ${drogasValue.toFixed(2)} kg
+            ${drogasValue.toFixed(2)} g
           </span>
           <span class="detalhe-local">${r[mapField('LOCAL')] || 'N/I'} - ${r[mapField('UNID (DP)')] || 'N/I'}</span>
           <span class="detalhe-data">${r[mapField('DT EVENTO')] || 'N/I'} | RO: ${r[mapField('REG OCOR')] || 'N/I'}</span>
@@ -1102,7 +1102,7 @@ function mostrarDetalhes(tipo, titulo) {
             ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
             ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
             ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
-            <span class="item-badge item-droga">Droga: ${drogasValue.toFixed(2)} kg</span>
+            <span class="item-badge item-droga">Droga: ${drogasValue.toFixed(2)} g</span>
           </div>
         </div>
       </div>`;
@@ -1132,7 +1132,7 @@ function mostrarDetalhes(tipo, titulo) {
             ${(r[mapField('PRISÕES')] || '').trim() !== '' ? `<span class="item-badge item-prisao">Prisão</span>` : ''}
             ${(r[mapField('ARMAS')] || '').trim() !== '' ? `<span class="item-badge item-arma">Arma</span>` : ''}
             ${(r[mapField('MUNIÇÕES')] || '').trim() !== '' ? `<span class="item-badge item-municao">Munição</span>` : ''}
-            ${((r[mapField('DROGAS (G)')] && r[mapField('DROGAS (G)')] !== '' && !isNaN(parseFloat(r[mapField('DROGAS (G)')])) && parseFloat(r[mapField('DROGAS (G)')]) > 0) ? `<span class="item-badge item-droga">Droga: ${parseFloat(r[mapField('DROGAS (G)')]).toFixed(2)} kg</span>` : '')}
+            ${((r[mapField('DROGAS (KG)')] && r[mapField('DROGAS (KG)')] !== '' && !isNaN(parseFloat(r[mapField('DROGAS (KG)')])) && parseFloat(r[mapField('DROGAS (KG)')]) > 0) ? `<span class="item-badge item-droga">Droga: ${parseFloat(r[mapField('DROGAS (KG)')]).toFixed(2)} kg</span>` : '')}
           </div>
         </div>
       </div>`).join('')}</div>`;
@@ -1213,7 +1213,7 @@ document.getElementById('btnPdfDetalhes').onclick = function() {
       r[mapField('DT EVENTO')], 
       r[mapField('UNID (DP)')], 
       r[mapField('LOCAL')], 
-      parseFloat(r[mapField('DROGAS (G)')] || 0).toFixed(2),
+      parseFloat(r[mapField('DROGAS (KG)')] || 0).toFixed(2),
       r[mapField('PRISÕES')] || '0',
       r[mapField('ARMAS')] || '0',
       r[mapField('MUNIÇÕES')] || '0'
@@ -1261,7 +1261,7 @@ document.getElementById('btnPdf').onclick = () => {
 
   // CORREÇÃO: Contabiliza ocorrências com drogas
   const totalDrogasOcorrencias = dados.reduce((a, r) => {
-    const drogasValue = r[mapField('DROGAS (G)')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
       return a + 1;
     }
@@ -1310,7 +1310,7 @@ document.getElementById('btnPdf').onclick = () => {
       r[mapField('PRISÕES')] || '0', 
       r[mapField('ARMAS')] || '0', 
       r[mapField('MUNIÇÕES')] || '0',
-      r[mapField('DROGAS (G)')] || '0'
+      r[mapField('DROGAS (KG)')] || '0'
     ]),
     theme: 'striped',
     headStyles: {fillColor: [30, 64, 175], fontSize: 7, cellPadding: 2},
@@ -1378,7 +1378,7 @@ document.getElementById('btnPdfPerf').onclick = function() {
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
     
     // CORREÇÃO: Contabiliza ocorrências com drogas
-    const drogasValue = r[mapField('DROGAS (G)')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
       porDepto[d].drogOcorrencias += 1;
     }
@@ -1484,7 +1484,7 @@ document.getElementById('btnPdfPerf').onclick = function() {
     r[mapField('FACÇÃO')], 
     r[mapField('PRISÕES')] || '0', 
     r[mapField('ARMAS')] || '0',
-    r[mapField('DROGAS (G)')] || '0'
+    r[mapField('DROGAS (KG)')] || '0'
   ]);
 
   doc.autoTable({
@@ -1540,7 +1540,7 @@ document.getElementById('btnAnalise').onclick = () => {
     porDepto[d].mun += (r[mapField('MUNIÇÕES')] || '').trim() !== '' ? 1 : 0;
     
     // CORREÇÃO: Contabiliza ocorrências com drogas
-    const drogasValue = r[mapField('DROGAS (G)')];
+    const drogasValue = r[mapField('DROGAS (KG)')];
     if (drogasValue && drogasValue !== '' && !isNaN(parseFloat(drogasValue)) && parseFloat(drogasValue) > 0) {
       porDepto[d].drogOcorrencias += 1;
     }
